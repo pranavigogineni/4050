@@ -88,6 +88,6 @@ ces/
 
 ## Tech Stack
 
-**Backend:** Node.js, Express, better-sqlite3  
+**Backend:** Node.js, Express, PostgreSQL
 **Frontend:** React 18, React Router v6, Vite, Axios  
 **Design:** Liquid glass UI — backdrop-filter blur, gradient accents, Syne + Inter fonts
