@@ -9,6 +9,7 @@
 ```bash
 cd backend
 npm install
+setup .env
 node server.js
 # → http://localhost:5001
 # SQLite DB auto-created and seeded with 10 movies on first run
