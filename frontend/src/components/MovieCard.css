@@ -1,0 +1,52 @@
+.mcard {
+  border-radius: var(--r); overflow: hidden; cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,.04);
+  transition: transform .25s var(--ease), border-color .22s, box-shadow .22s;
+}
+.mcard:hover {
+  transform: translateY(-7px) scale(1.01);
+  border-color: rgba(79,126,255,.45);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(79,126,255,.15),
+              inset 0 1px 0 rgba(255,255,255,.09);
+}
+.mcard-img { position: relative; overflow: hidden; }
+.mcard-img img {
+  width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
+  background: var(--layer2); transition: transform .35s ease;
+}
+.mcard:hover .mcard-img img { transform: scale(1.06); }
+.mcard-shine {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.1) 0%, transparent 50%);
+  opacity: 0; transition: opacity .25s; pointer-events: none;
+}
+.mcard:hover .mcard-shine { opacity: 1; }
+.mcard-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(6,7,20,.92) 0%, rgba(6,7,20,.25) 55%, transparent 100%);
+  display: flex; align-items: flex-end; padding: .85rem;
+  opacity: 0; transition: opacity .22s;
+}
+.mcard:hover .mcard-overlay { opacity: 1; }
+.mcard-cta {
+  font-size: .76rem; font-weight: 700; padding: .35rem .9rem; border-radius: 100px;
+  background: linear-gradient(135deg, var(--blue), var(--violet)); color: #fff;
+  box-shadow: 0 4px 16px rgba(79,126,255,.4);
+}
+.mcard-rating {
+  position: absolute; top: .6rem; left: .6rem;
+  background: rgba(6,7,20,.75); backdrop-filter: blur(8px);
+}
+.mcard-release {
+  position: absolute; top: .6rem; right: .6rem;
+  font-size: .64rem; font-weight: 600; padding: .18rem .5rem; border-radius: 6px;
+  background: rgba(139,92,246,.35); border: 1px solid rgba(139,92,246,.4);
+  backdrop-filter: blur(8px); color: #d0b8ff; white-space: nowrap;
+}
+.mcard-body { padding: .85rem; }
+.mcard-title {
+  font-size: .88rem; font-weight: 600; line-height: 1.3; margin-bottom: .45rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mcard-meta { display: flex; gap: .35rem; flex-wrap: wrap; }

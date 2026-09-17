@@ -1,0 +1,49 @@
+.controls-bar {
+  padding: 1rem 2rem;
+  display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky; top: var(--nav-h); z-index: 90;
+}
+.ctrl-search { position: relative; flex: 1; min-width: 200px; }
+.cs-icon {
+  position: absolute; left: .78rem; top: 50%; transform: translateY(-50%);
+  font-size: .8rem; pointer-events: none;
+}
+.cs-input {
+  width: 100%;
+  background: rgba(255,255,255,.06); border: 1px solid var(--glass-border);
+  border-radius: 100px; padding: .55rem 2.2rem .55rem 2.2rem;
+  color: var(--t1); font-size: .875rem; font-family: var(--f-body); outline: none;
+  transition: border-color var(--t), background var(--t);
+}
+.cs-input:focus { border-color: rgba(79,126,255,.5); background: rgba(79,126,255,.07); }
+.cs-input::placeholder { color: var(--t3); }
+.cs-clear {
+  position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--t3); cursor: pointer;
+  font-size: .78rem; line-height: 1; padding: .1rem; transition: color var(--t);
+}
+.cs-clear:hover { color: var(--t1); }
+
+.filter-pill {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .52rem .9rem;
+  background: rgba(255,255,255,.06); border: 1px solid var(--glass-border);
+  border-radius: 100px; color: var(--t2); cursor: pointer;
+  transition: all var(--t); font-size: .82rem; white-space: nowrap;
+}
+.filter-pill:focus-within { border-color: rgba(79,126,255,.4); color: var(--blue-soft); }
+.filter-pill select {
+  background: none; border: none; color: inherit;
+  font-family: var(--f-body); font-size: .82rem; font-weight: 500;
+  cursor: pointer; outline: none; padding: 0;
+  -webkit-appearance: none; appearance: none;
+}
+.filter-pill select option { background: #0f1225; color: var(--t1); }
+.filter-pill-disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.fp-arrow { color: var(--t3); font-size: .7rem; }
+.sprint-chip {
+  font-size: .67rem; font-weight: 700; padding: .18rem .5rem; border-radius: 4px;
+  background: rgba(245,200,66,.08); color: var(--gold);
+  border: 1px solid rgba(245,200,66,.22); white-space: nowrap;
+}
