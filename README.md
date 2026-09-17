@@ -5,15 +5,20 @@
 
 ## Quick Start
 
+Use Node.js 20 (`nvm use` if you use nvm).
+
 ### 1. Backend
 ```bash
 cd backend
 npm install
-setup .env
 node server.js
 # → http://localhost:5001
 # SQLite DB auto-created and seeded with 10 movies on first run
 ```
+
+The backend creates `backend/cinema.db` and seeds 10 movies and three showtimes per movie when the movies table is empty. Existing local records are preserved on restart. No Supabase account or `DATABASE_URL` is needed. This uses local sample data; it does not copy data from Supabase.
+
+Configuration is optional: copy `backend/.env.example` to `backend/.env` to override `PORT` or `SQLITE_DB_PATH`. Relative database paths are resolved from `backend/`; any parent directory must already exist. Keep port 5001 when using the default frontend proxy. Local database files and `.env` are ignored by Git.
 
 ### 2. Frontend
 ```bash
@@ -25,6 +30,15 @@ npm run dev
 ```
 
 ---
+
+## Backend Checks
+
+```bash
+cd backend
+npm test
+```
+
+The tests use a temporary SQLite database and verify seeding, API search/filter results, showtimes, and persistence across restarts.
 
 ## Project Structure
 ```
@@ -88,6 +102,6 @@ ces/
 
 ## Tech Stack
 
-**Backend:** Node.js, Express, PostgreSQL
+**Backend:** Node.js, Express, SQLite (better-sqlite3)
 **Frontend:** React 18, React Router v6, Vite, Axios  
 **Design:** Liquid glass UI — backdrop-filter blur, gradient accents, Syne + Inter fonts
