@@ -41,6 +41,14 @@ export default function MovieCard({ movie }) {
             : <span className="tag tag-soon">Coming Soon</span>
           }
         </div>
+        {movie.showtimes?.length > 0 && (
+          <div className="mcard-showtimes">
+            <span className="mcard-showtimes-label">Showtimes</span>
+            <div className="mcard-showtime-list">
+              {movie.showtimes.map(time => <span key={time} className="mcard-showtime">{time}</span>)}
+            </div>
+          </div>
+        )}
       </div>
     </article>
   )

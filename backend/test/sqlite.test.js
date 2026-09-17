@@ -60,8 +60,10 @@ test('SQLite seeds a fresh database, serves the API, and preserves edits on rest
   assert.equal(movies.body.length, 10);
   assert.deepEqual([...new Set(movies.body.map(m => m.status))].sort(), ['coming_soon', 'running']);
   assert.ok(new Set(movies.body.map(m => m.genre)).size > 1);
+  assert.equal(movies.body[0].title, 'Dune: Part Two');
 
   for (const movie of movies.body) {
+    assert.deepEqual(movie.showtimes, ['2:00 PM', '5:00 PM', '8:00 PM']);
     const detail = await server.get(`/movies/${movie.id}`);
     assert.equal(detail.status, 200);
     assert.equal(detail.body.title, movie.title);
@@ -85,11 +87,19 @@ test('SQLite seeds a fresh database, serves the API, and preserves edits on rest
   await server.stop();
   const db = new Database(databasePath);
   try {
-    db.prepare('UPDATE movies SET title = ? WHERE id = ?').run('Local edited title', movies.body[0].id);
+    db.prepare('UPDATE movies SET title = ? WHERE id = ?').run('Dune: Part Three', movies.body[0].id);
+    db.prepare('UPDATE movies SET trailer_url = ? WHERE id = ?')
+      .run('https://www.youtube.com/embed/8zU5TWJHHOU', movies.body[2].id);
+    db.prepare('UPDATE movies SET title = ? WHERE id = ?').run('Local edited title', movies.body[1].id);
   } finally { db.close(); }
   server = await start(databasePath, directory);
   assert.equal((await server.get('/movies')).body.length, 10);
   const persisted = (await server.get(`/movies/${movies.body[0].id}`)).body;
-  assert.equal(persisted.title, 'Local edited title');
+  assert.equal(persisted.title, 'Dune: Part Two');
   assert.equal(persisted.showtimes.length, 3);
+  assert.equal((await server.get(`/movies/${movies.body[1].id}`)).body.title, 'Local edited title');
+  assert.equal(
+    (await server.get(`/movies/${movies.body[2].id}`)).body.trailer_url,
+    'https://www.youtube.com/embed/OzY2r2JXsDM'
+  );
 });

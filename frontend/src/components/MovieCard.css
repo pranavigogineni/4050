@@ -50,3 +50,14 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .mcard-meta { display: flex; gap: .35rem; flex-wrap: wrap; }
+.mcard-showtimes { margin-top: .8rem; }
+.mcard-showtimes-label {
+  display: block; margin-bottom: .4rem; color: var(--t3);
+  font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+}
+.mcard-showtime-list { display: flex; flex-wrap: wrap; gap: .35rem; }
+.mcard-showtime {
+  padding: .25rem .45rem; border-radius: 6px;
+  color: var(--t2); background: rgba(255,255,255,.07);
+  font-size: .72rem; white-space: nowrap;
+}

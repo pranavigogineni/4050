@@ -73,7 +73,7 @@ export default function MovieDetailPage() {
                       className="st-btn"
                       onClick={() => navigate(`/booking/${movie.id}/${encodeURIComponent(t)}`)}
                     >
-                      {t} <span className="st-arrow">→</span>
+                      Book {t} <span className="st-arrow">→</span>
                     </button>
                   ))
                 : <p className="no-shows">There are no shows available.</p>

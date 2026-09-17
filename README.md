@@ -73,7 +73,7 @@ ces/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/movies` | All movies. Supports `?search=title&genre=Genre` |
+| GET | `/api/movies` | All movies with showtimes. Supports `?search=title&genre=Genre` |
 | GET | `/api/movies/:id` | Single movie with showtimes array |
 | GET | `/api/genres` | Distinct genre list for filter dropdown |
 
@@ -96,7 +96,7 @@ ces/
 | Booking Page — Interactive seat map | ✅ |
 | 5-minute countdown timer on booking page | ✅ |
 | 10+ seeded movies, multiple genres, both statuses | ✅ |
-| Release date shown on Coming Soon cards | ✅ |
+| Home Page displays database showtimes | ✅ |
 
 ---
 
