@@ -16,10 +16,10 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="logo" onClick={() => navigate('/')}>
+      <button aria-label="CineMax home" className="logo" onClick={() => navigate('/')}>
         <div className="logo-dot" />
         CineMax
-      </div>
+      </button>
 
       <div className="nav-links">
         <button

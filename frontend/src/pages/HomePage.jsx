@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchMovies, fetchGenres } from '../api/movies'
 import SearchBar from '../components/SearchBar'
 import MovieCard from '../components/MovieCard'
+import LoadError from '../components/LoadError'
 import './HomePage.css'
 
 export default function HomePage() {
@@ -13,25 +14,34 @@ export default function HomePage() {
   const [genre,   setGenre]   = useState('')
   const [loading, setLoading] = useState(true)
 
-  // load genres once
-  useEffect(() => {
-    fetchGenres().then(setGenres).catch(console.error)
-  }, [])
+  const [error, setError] = useState('')
+  const [genreError, setGenreError] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
-  // reload movies whenever search or genre changes
   useEffect(() => {
+    let active = true
+    setGenreError('')
+    fetchGenres().then(data => { if (active) setGenres(data) }).catch(() => {
+      if (active) setGenreError('Unable to load genres. Please retry.')
+    })
+    return () => { active = false }
+  }, [attempt])
+
+  useEffect(() => {
+    let active = true
     setLoading(true)
-    const params = {}
-    if (search) params.search = search
-    if (genre)  params.genre  = genre
-    fetchMovies(params)
-      .then(data => { setMovies(data); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [search, genre])
+    setError('')
+    fetchMovies({ search: search.trim(), genre }).then(data => {
+      if (active) { setMovies(data); setLoading(false) }
+    }).catch(() => {
+      if (active) { setError('Unable to load movies. Please try again.'); setLoading(false) }
+    })
+    return () => { active = false }
+  }, [search, genre, attempt])
 
   const running = movies.filter(m => m.status === 'running')
   const coming  = movies.filter(m => m.status === 'coming_soon')
-  const isFiltered = search || genre
+  const isFiltered = search.trim() || genre
 
   return (
     <div className="home-page">
@@ -43,7 +53,7 @@ export default function HomePage() {
         <div className="hero-content">
           <div className="hero-tag">
             <span className="hero-dot" />
-            Now streaming live showtimes
+            Discover your next movie
           </div>
           <h1 className="hero-h1">
             Your cinema,<br />
@@ -60,7 +70,8 @@ export default function HomePage() {
             >
               Browse movies
             </button>
-            <button className="btn-ghost" onClick={() => navigate('/movie/1')}>
+            <button className="btn-ghost" disabled={loading || !!error || !movies.length}
+              onClick={() => navigate(`/movie/${movies[0].id}#trailer`)}>
               Watch a trailer
             </button>
           </div>
@@ -74,10 +85,14 @@ export default function HomePage() {
         genres={genres}
       />
 
+      {genreError && <div className="load-error" role="alert">{genreError}
+        <button className="btn-ghost" onClick={() => setAttempt(a => a + 1)}>Retry genres</button>
+      </div>}
+
       {/* ── CONTENT ──────────────────────────────────────────────── */}
       {loading ? (
         <div className="spinner-wrap"><div className="spinner" /></div>
-      ) : isFiltered ? (
+      ) : error ? <LoadError message={error} retry={() => setAttempt(a => a + 1)} /> : isFiltered ? (
         /* ── FILTERED RESULTS ── */
         <section className="home-section">
           <div className="section-hdr">

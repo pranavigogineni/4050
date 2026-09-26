@@ -156,3 +156,21 @@
 .ck-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,126,255,.45); }
 .ck-btn:disabled { opacity: .35; cursor: not-allowed; }
 .ck-note { text-align: center; font-size: .7rem; color: var(--t3); margin-top: .55rem; }
+.booking-body { margin: 0 auto; }
+.seat-section { min-width: 0; }
+.seat-scroll { overflow-x: auto; padding: .3rem; }
+.seat-rows, .col-labels { min-width: 520px; }
+.seat { min-height: 40px; background: rgba(52,211,153,.22); border-color: #34d399; }
+.seat.taken { opacity: 1; background: #30364a; border-color: #71809e; }
+.seat.taken::after { height: 2px; background: #a8b2ca; top: 50%; transform: rotate(-35deg); }
+.leg-avail { background: rgba(52,211,153,.22); border-color: #34d399; }
+.leg-taken { background: #30364a; border-color: #71809e; opacity: 1; }
+.qbtn { width: 40px; height: 40px; }
+.prototype-note, .booking-notice { padding: 1rem 2rem; max-width: 1150px; margin: 0 auto; color: var(--t2); line-height: 1.6; }
+.booking-notice { color: var(--gold); }
+@media (max-width: 480px) {
+  .booking-hdr, .booking-body { padding: 1rem; }
+  .booking-hdr .back-btn { margin-left: 0; }
+  .timer-chip { margin-left: 0; }
+  .tpanel { padding: 1rem; }
+}

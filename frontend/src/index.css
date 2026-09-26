@@ -107,3 +107,13 @@ body::before {
 }
 .no-results .nr-icon { font-size: 3rem; margin-bottom: 1rem; opacity: .5; }
 .no-results h3 { font-size: 1rem; color: var(--t2); margin-bottom: .35rem; }
+
+/* Shared interaction and recovery states */
+:root { --t3: #929dbc; }
+:focus-visible { outline: 3px solid var(--blue-soft); outline-offset: 4px; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+.load-error { padding: 3rem 2rem; text-align: center; }
+.load-error h2 { margin-bottom: 1.5rem; font-size: 1.25rem; }
+.load-error .btn-primary, .load-error .btn-ghost { display: inline-block; margin: .5rem; text-decoration: none; }
+#trailer { scroll-margin-top: 80px; }
+.controls-bar { scroll-margin-top: var(--nav-h); }

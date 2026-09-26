@@ -1,0 +1,107 @@
+[
+  {
+    "name": "10 home cards",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "30 home showtime labels",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "partial case-insensitive search",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "combined no match message",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "genre returns four action movies",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "clear restores ten",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "date disabled",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "details fields and showtimes",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "booking movie/time",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "70 seats",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "seat select",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "checkout enabled with zero tickets",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "seat deselect",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "ticket total 31.97",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "timer clears seats",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "timer frozen after expiry",
+    "pass": true,
+    "detail": "⏱ 5:00"
+  },
+  {
+    "name": "invalid showtime accepted",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "percent showtime crashes content",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "empty DB messages",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "API failure incorrectly shown as empty catalogue",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "mobile body overflow",
+    "pass": false,
+    "detail": ""
+  }
+]

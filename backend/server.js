@@ -54,7 +54,7 @@ if (count === 0) {
       'Dune: Part Two', 'Sci-Fi', 'PG-13',
       'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between love and the fate of the known universe, he must prevent a terrible future only he can foresee.',
       'Timothée Chalamet, Zendaya, Rebecca Ferguson', 'Denis Villeneuve',
-      'https://image.tmdb.org/t/p/w500/d5NXSklpcuveUsGBl8lZa4i8wJ6.jpg',
+      'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
       'https://www.youtube.com/embed/U2Qp5pL3ovA', 'running', null
     ],
     [
@@ -133,7 +133,8 @@ if (count === 0) {
   console.log('Seeded 10 movies into SQLite');
 }
 
-// Repair only known sample values from older local databases. Leave user edits alone.
+// Apply sample corrections once per database. Later local edits remain untouched.
+db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY)');
 const sampleTrailers = [
   ['8zU5TWJHHOU', 'OzY2r2JXsDM'],
   ['2lFLIFUUzJo', 'XtFI7SNtVpY'],
@@ -142,6 +143,7 @@ const sampleTrailers = [
   ['jjlnE3Cxpb4', '4rgYUipGJNo'],
 ];
 const repairSamples = db.transaction(() => {
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get('sprint1-sample-corrections-v1')) return;
   db.prepare("UPDATE movies SET title = 'Dune: Part Two' WHERE title = 'Dune: Part Three'").run();
   const replaceTrailer = db.prepare('UPDATE movies SET trailer_url = ? WHERE trailer_url = ?');
   for (const [oldId, newId] of sampleTrailers) {
@@ -156,20 +158,32 @@ const repairSamples = db.transaction(() => {
   ]) {
     removeOldSampleDate.run(title, date);
   }
+  db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run('sprint1-sample-corrections-v1');
 });
 repairSamples();
+const repairPoster = db.transaction(() => {
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get('dune-poster-v1')) return;
+  db.prepare('UPDATE movies SET poster = ? WHERE poster = ? AND title = ?').run(
+    'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
+    'https://image.tmdb.org/t/p/w500/d5NXSklpcuveUsGBl8lZa4i8wJ6.jpg', 'Dune: Part Two');
+  db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run('dune-poster-v1');
+});
+repairPoster();
 
 // ─── ROUTES ───────────────────────────────────────────────────────────────────
 
 // GET /api/movies  — supports ?search=title&genre=Genre
 app.get('/api/movies', (req, res) => {
   const { search, genre } = req.query;
+  if ([search, genre].some(value => value !== undefined && typeof value !== 'string')) {
+    return res.status(400).json({ error: 'Search and genre must each be a single text value.' });
+  }
   let sql = 'SELECT * FROM movies WHERE 1=1';
   const params = [];
 
   if (search) {
-    sql += ' AND LOWER(title) LIKE ?';
-    params.push(`%${search.toLowerCase()}%`);
+    sql += ' AND INSTR(LOWER(title), ?) > 0';
+    params.push(search.trim().toLowerCase());
   }
   if (genre && genre !== '') {
     sql += ' AND LOWER(genre) = ?';
@@ -188,6 +202,7 @@ app.get('/api/movies', (req, res) => {
 
 // GET /api/movies/:id  — single movie with showtimes array
 app.get('/api/movies/:id', (req, res) => {
+  if (!/^[1-9]\d*$/.test(req.params.id)) return res.status(404).json({ error: 'Movie not found' });
   const movie = db.prepare('SELECT * FROM movies WHERE id = ?').get(req.params.id);
   if (!movie) return res.status(404).json({ error: 'Movie not found' });
 
@@ -204,6 +219,22 @@ app.get('/api/genres', (req, res) => {
     'SELECT DISTINCT genre FROM movies ORDER BY genre'
   ).all();
   res.json(rows.map(r => r.genre));
+});
+
+// Serve the production build from the same origin as the API.
+app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not found' }));
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res, next) => {
+  if (path.extname(req.path)) return res.status(404).send('Not found');
+  res.sendFile(path.join(frontendDist, 'index.html'), error => {
+    if (error) next(error);
+  });
+});
+app.use((error, req, res, next) => {
+  console.error(error.message);
+  if (res.headersSent) return next(error);
+  res.status(error.status === 404 ? 404 : 500).json({ error: 'Unable to complete the request.' });
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────

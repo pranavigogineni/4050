@@ -8,20 +8,21 @@ export default function SearchBar({ search, onSearch, genre, onGenre, genres }) 
         <span className="cs-icon">🔍</span>
         <input
           className="cs-input"
-          type="text"
+          type="search"
+          aria-label="Search by title"
           placeholder="Search by title…"
           value={search}
           onChange={e => onSearch(e.target.value)}
         />
         {search && (
-          <button className="cs-clear" onClick={() => onSearch('')}>✕</button>
+          <button className="cs-clear" aria-label="Clear search" onClick={() => onSearch('')}>✕</button>
         )}
       </div>
 
       {/* ── GENRE FILTER ── */}
       <div className="filter-pill">
         <span>🎬</span>
-        <select
+        <select aria-label="Filter by genre"
           value={genre}
           onChange={e => onGenre(e.target.value)}
         >
@@ -34,7 +35,7 @@ export default function SearchBar({ search, onSearch, genre, onGenre, genres }) 
       {/* ── DATE FILTER (UI only, Sprint 2) ── */}
       <div className="filter-pill filter-pill-disabled" title="Date filter coming in Sprint 2">
         <span>📅</span>
-        <select disabled>
+        <select disabled aria-label="Filter by show date (coming in Sprint 2)">
           <option>All dates</option>
           <option>Today</option>
           <option>This Weekend</option>

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import './MovieCard.css'
+import Poster from './Poster'
 
 export default function MovieCard({ movie }) {
   const navigate = useNavigate()
@@ -9,18 +10,16 @@ export default function MovieCard({ movie }) {
       className="mcard"
       onClick={() => navigate(`/movie/${movie.id}`)}
       tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && navigate(`/movie/${movie.id}`)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/movie/${movie.id}`) } }}
       role="button"
       aria-label={`View details for ${movie.title}`}
     >
       <div className="mcard-img">
-        <img
+        <Poster
           src={movie.poster}
           alt={movie.title}
           loading="lazy"
-          onError={e => {
-            e.target.src = `https://placehold.co/200x300/0c0e23/4f7eff?text=${encodeURIComponent(movie.title)}`
-          }}
+
         />
         <div className="mcard-shine" />
         <div className="mcard-overlay">

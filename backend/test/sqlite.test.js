@@ -61,6 +61,7 @@ test('SQLite seeds a fresh database, serves the API, and preserves edits on rest
   assert.deepEqual([...new Set(movies.body.map(m => m.status))].sort(), ['coming_soon', 'running']);
   assert.ok(new Set(movies.body.map(m => m.genre)).size > 1);
   assert.equal(movies.body[0].title, 'Dune: Part Two');
+  assert.match(movies.body[0].poster, /1pdfLvkbY9ohJlCjQH2CZjjYVvJ/);
 
   for (const movie of movies.body) {
     assert.deepEqual(movie.showtimes, ['2:00 PM', '5:00 PM', '8:00 PM']);
@@ -79,6 +80,17 @@ test('SQLite seeds a fresh database, serves the API, and preserves edits on rest
   assert.deepEqual((await server.get('/movies?search=nonexistent-title')).body, []);
   assert.deepEqual((await server.get('/movies?genre=nonexistent-genre')).body, []);
   assert.deepEqual((await server.get('/movies?search=%27%20OR%201%3D1--')).body, []);
+  for (const query of ['search=%25', 'search=_', 'search=%5C%5C']) {
+    assert.deepEqual((await server.get(`/movies?${query}`)).body, []);
+  }
+  for (const query of ['search=Dune&search=Wicked', 'genre[]=Action', 'search[x]=Dune']) {
+    const invalid = await server.get(`/movies?${query}`);
+    assert.equal(invalid.status, 400);
+    assert.match(invalid.body.error, /single text value/);
+  }
+  assert.equal((await server.get('/movies?search=%20DUNE%20')).body.length, 1);
+  assert.equal((await server.get('/movies/not-an-id')).status, 404);
+  assert.equal((await server.get('/unknown')).status, 404);
   const genres = await server.get('/genres');
   assert.equal(genres.status, 200);
   assert.deepEqual(genres.body, [...new Set(movies.body.map(m => m.genre))].sort());
@@ -95,11 +107,36 @@ test('SQLite seeds a fresh database, serves the API, and preserves edits on rest
   server = await start(databasePath, directory);
   assert.equal((await server.get('/movies')).body.length, 10);
   const persisted = (await server.get(`/movies/${movies.body[0].id}`)).body;
-  assert.equal(persisted.title, 'Dune: Part Two');
+  assert.equal(persisted.title, 'Dune: Part Three');
   assert.equal(persisted.showtimes.length, 3);
   assert.equal((await server.get(`/movies/${movies.body[1].id}`)).body.title, 'Local edited title');
   assert.equal(
     (await server.get(`/movies/${movies.body[2].id}`)).body.trailer_url,
-    'https://www.youtube.com/embed/OzY2r2JXsDM'
+    'https://www.youtube.com/embed/8zU5TWJHHOU'
   );
+});
+
+
+test('legacy sample migration runs once and preserves later edits', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ces-migration-'));
+  const databasePath = path.join(directory, 'legacy.db');
+  let server;
+  t.after(async () => { if (server) await server.stop(); await rm(directory, { recursive: true, force: true }); });
+  server = await start(databasePath, directory);
+  await server.stop();
+  let db = new Database(databasePath);
+  db.exec('DROP TABLE schema_migrations');
+  db.prepare('UPDATE movies SET title = ?, poster = ? WHERE id = 1').run('Dune: Part Three',
+    'https://image.tmdb.org/t/p/w500/d5NXSklpcuveUsGBl8lZa4i8wJ6.jpg');
+  db.close();
+  server = await start(databasePath, directory);
+  const repaired = (await server.get('/movies/1')).body;
+  assert.equal(repaired.title, 'Dune: Part Two');
+  assert.match(repaired.poster, /1pdfLvkbY9ohJlCjQH2CZjjYVvJ/);
+  await server.stop();
+  db = new Database(databasePath);
+  db.prepare('UPDATE movies SET title = ? WHERE id = 1').run('Dune: Part Three');
+  db.close();
+  server = await start(databasePath, directory);
+  assert.equal((await server.get('/movies/1')).body.title, 'Dune: Part Three');
 });

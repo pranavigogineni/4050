@@ -33,3 +33,10 @@
 }
 .nav-link:hover, .nav-link.active { color: var(--t1); }
 .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); }
+.logo { border: none; background: none; padding: 0; }
+@media (max-width: 480px) {
+  .navbar { padding: 0 1rem; gap: 1rem; }
+  .logo { font-size: 1.2rem; }
+  .nav-links { gap: 1rem; }
+  .nav-link { min-height: 44px; }
+}

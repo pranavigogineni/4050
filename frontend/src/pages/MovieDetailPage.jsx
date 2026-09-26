@@ -1,23 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchMovie } from '../api/movies'
+import useMovie from '../hooks/useMovie'
+import LoadError from '../components/LoadError'
+import Poster from '../components/Poster'
 import './MovieDetailPage.css'
 
 export default function MovieDetailPage() {
   const { id }    = useParams()
   const navigate  = useNavigate()
-  const [movie,   setMovie]   = useState(null)
-  const [loading, setLoading] = useState(true)
-
+  const { movie, loading, error, retry } = useMovie(id)
   useEffect(() => {
-    setLoading(true)
-    fetchMovie(id)
-      .then(data => { setMovie(data); setLoading(false) })
-      .catch(() => navigate('/'))
-  }, [id])
-
-  if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>
-  if (!movie)  return null
+    if (movie && window.location.hash === '#trailer') document.getElementById('trailer')?.scrollIntoView()
+  }, [movie])
+  if (loading) return <div className="spinner-wrap" role="status" aria-label="Loading movie"><div className="spinner" /></div>
+  if (error) return <LoadError message={error} retry={retry} />
+  if (!movie) return null
 
   return (
     <div className="detail-page">
@@ -30,16 +27,15 @@ export default function MovieDetailPage() {
 
       <div className="detail-inner">
         {/* ── BACK ── */}
-        <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
+        <button className="back-btn" onClick={() => navigate('/')}>← Back to movies</button>
 
         {/* ── MAIN LAYOUT ── */}
         <div className="detail-layout">
           <div className="detail-poster-col">
-            <img
+            <Poster
               className="detail-poster"
               src={movie.poster}
               alt={movie.title}
-              onError={e => { e.target.src = `https://placehold.co/300x450/0c0e23/4f7eff?text=${encodeURIComponent(movie.title)}` }}
             />
           </div>
 
@@ -83,7 +79,7 @@ export default function MovieDetailPage() {
         </div>
 
         {/* ── TRAILER ── */}
-        <div className="trailer-section">
+        <div className="trailer-section" id="trailer">
           <h2 className="trailer-hdr">
             <span className="play-icon">▶</span>
             Official Trailer
@@ -93,7 +89,8 @@ export default function MovieDetailPage() {
               src={`${movie.trailer_url}?rel=0&modestbranding=1`}
               title={`${movie.title} — Official Trailer`}
               allowFullScreen
-              allow="autoplay; encrypted-media"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           </div>
         </div>

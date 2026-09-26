@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+const api = axios.create({ baseURL: '/api', timeout: 10000 })
 
 export const fetchMovies  = (params = {}) => api.get('/movies', { params }).then(r => r.data)
 export const fetchMovie   = (id)           => api.get(`/movies/${id}`).then(r => r.data)

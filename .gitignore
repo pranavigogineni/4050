@@ -4,3 +4,6 @@ frontend/dist/
 .env
 .DS_Store
 *.log
+
+frontend/test-results/
+frontend/playwright-report/

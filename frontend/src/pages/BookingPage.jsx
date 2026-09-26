@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchMovie } from '../api/movies'
+import useMovie from '../hooks/useMovie'
+import LoadError from '../components/LoadError'
+import Poster from '../components/Poster'
 import './BookingPage.css'
 
 const ROWS  = ['A','B','C','D','E','F','G']
@@ -8,9 +10,9 @@ const COLS  = 10
 const PRICES = { adult: 12.99, child: 8.99, senior: 9.99 }
 
 // Deterministic taken seats based on movie id (so they're consistent)
-function getInitialTaken(movieId) {
+function getInitialTaken(movieId, showtime) {
   const taken = new Set()
-  const seed  = parseInt(movieId) * 31
+  const seed = parseInt(movieId) * 31 + [...showtime].reduce((sum, c) => sum + c.charCodeAt(0), 0)
   ROWS.forEach((row, ri) => {
     for (let c = 1; c <= COLS; c++) {
       if (((ri * 13 + c * 7 + seed) % 100) < 27) taken.add(`${row}${c}`)
@@ -22,41 +24,39 @@ function getInitialTaken(movieId) {
 export default function BookingPage() {
   const { id, showtime } = useParams()
   const navigate         = useNavigate()
-  const time             = decodeURIComponent(showtime)
+  const time             = showtime
 
-  const [movie,    setMovie]    = useState(null)
-  const [loading,  setLoading]  = useState(true)
+  const { movie, loading, error, retry } = useMovie(id)
   const [selected, setSelected] = useState(new Set())
-  const [qty,      setQty]      = useState({ adult: 0, child: 0, senior: 0 })
-  const [secs,     setSecs]     = useState(300)  // 5-min countdown
-  const timerRef = useRef(null)
+  const [qty, setQty] = useState({ adult: 0, child: 0, senior: 0 })
+  const [secs, setSecs] = useState(300)
+  const [deadline, setDeadline] = useState(null)
+  const [notice, setNotice] = useState('')
+  const taken = useMemo(() => getInitialTaken(id, time), [id, time])
+  const capacity = ROWS.length * COLS - taken.size
 
-  const taken = useMemo(() => getInitialTaken(id), [id])
-
+  // Local prototype timer only; no server-side seat reservation is made.
   useEffect(() => {
-    fetchMovie(id)
-      .then(data => { setMovie(data); setLoading(false) })
-      .catch(() => navigate('/'))
-  }, [id])
-
-  // 5-minute timer per US-3.1
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setSecs(s => {
-        if (s <= 1) {
-          clearInterval(timerRef.current)
-          alert('Your seat reservation has expired. Please select seats again.')
-          setSelected(new Set())
-          return 300
-        }
-        return s - 1
-      })
-    }, 1000)
-    return () => clearInterval(timerRef.current)
-  }, [])
+    if (deadline === null) return
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+      setSecs(remaining)
+      if (remaining === 0) {
+        setDeadline(null)
+        setSelected(new Set())
+        setQty({ adult: 0, child: 0, senior: 0 })
+        setNotice('Your selection time expired. Please select seats and tickets again.')
+        setSecs(300)
+      }
+    }
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [deadline])
 
   const toggleSeat = (sid) => {
     if (taken.has(sid)) return
+    setNotice('')
+    if (deadline === null) { setDeadline(Date.now() + 300000); setSecs(300) }
     setSelected(prev => {
       const next = new Set(prev)
       next.has(sid) ? next.delete(sid) : next.add(sid)
@@ -65,19 +65,25 @@ export default function BookingPage() {
   }
 
   const changeQty = (type, delta) => {
-    setQty(prev => ({ ...prev, [type]: Math.max(0, prev[type] + delta) }))
+    setNotice('')
+    setQty(prev => {
+      if (delta > 0 && prev.adult + prev.child + prev.senior >= capacity) return prev
+      return { ...prev, [type]: Math.max(0, prev[type] + delta) }
+    })
   }
 
   const total       = qty.adult * PRICES.adult + qty.child * PRICES.child + qty.senior * PRICES.senior
   const totalTix    = qty.adult + qty.child + qty.senior
-  const canCheckout = totalTix > 0 || selected.size > 0
+  const canCheckout = totalTix > 0 && totalTix === selected.size
 
   const mm = Math.floor(secs / 60)
   const ss = String(secs % 60).padStart(2, '0')
   const urgent = secs <= 60
 
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>
-  if (!movie)  return null
+  if (error) return <LoadError message={error} retry={retry} />
+  if (!movie) return null
+  if (!movie.showtimes.includes(time)) return <LoadError message="This showtime is not available. Please select a listed showtime." />
 
   return (
     <div className="booking-page">
@@ -87,11 +93,10 @@ export default function BookingPage() {
           ← Back to Movie
         </button>
         <div className="booking-hdr-row">
-          <img
+          <Poster
             className="booking-thumb"
             src={movie.poster}
             alt={movie.title}
-            onError={e => { e.target.style.display = 'none' }}
           />
           <div>
             <div className="booking-ttl">{movie.title}</div>
@@ -104,10 +109,13 @@ export default function BookingPage() {
           </div>
           {/* countdown timer */}
           <div className={`timer-chip ${urgent ? 'urgent' : ''}`}>
-            ⏱ {mm}:{ss}
+            ⏱ {mm}:{ss}{deadline === null ? ' · starts with seat selection' : ''}
           </div>
         </div>
       </div>
+
+      {notice && <p className="booking-notice" role="status">{notice}</p>}
+      <p className="prototype-note">Booking preview: seats are illustrative and are not reserved.</p>
 
       {/* ── BODY ── */}
       <div className="booking-body">
@@ -116,6 +124,7 @@ export default function BookingPage() {
           <div className="screen-label">Screen</div>
           <div className="screen-bar" />
 
+          <div className="seat-scroll" tabIndex={0} aria-label="Seat map; scroll horizontally on small screens">
           <div className="col-labels">
             <div />
             {Array.from({ length: COLS }, (_, i) => (
@@ -137,6 +146,7 @@ export default function BookingPage() {
                       className={`seat ${isTaken ? 'taken' : ''} ${isSelected ? 'sel' : ''}`}
                       onClick={() => toggleSeat(sid)}
                       disabled={isTaken}
+                      aria-pressed={isSelected}
                       title={isTaken ? 'Unavailable' : sid}
                       aria-label={isTaken ? `Seat ${sid} unavailable` : `Select seat ${sid}`}
                     />
@@ -146,6 +156,7 @@ export default function BookingPage() {
             ))}
           </div>
 
+          </div>
           <div className="seat-legend">
             <div className="leg-item">
               <div className="leg-sw leg-avail" />
@@ -167,7 +178,7 @@ export default function BookingPage() {
           <h3 className="tpanel-ttl">Your Tickets</h3>
 
           {[
-            { key: 'adult',  label: 'Adult',  price: PRICES.adult,  hint: 'Ages 18–64' },
+            { key: 'adult',  label: 'Adult',  price: PRICES.adult,  hint: 'Ages 12–64' },
             { key: 'child',  label: 'Child',  price: PRICES.child,  hint: 'Under 12' },
             { key: 'senior', label: 'Senior', price: PRICES.senior, hint: 'Ages 65+' },
           ].map(({ key, label, price, hint }) => (
@@ -178,9 +189,9 @@ export default function BookingPage() {
                 <div className="t-hint">{hint}</div>
               </div>
               <div className="qty-ctrl">
-                <button className="qbtn" onClick={() => changeQty(key, -1)}>−</button>
+                <button className="qbtn" aria-label={`Decrease ${label} tickets`} disabled={qty[key] === 0} onClick={() => changeQty(key, -1)}>−</button>
                 <span className="qv">{qty[key]}</span>
-                <button className="qbtn" onClick={() => changeQty(key, 1)}>+</button>
+                <button className="qbtn" aria-label={`Increase ${label} tickets`} disabled={totalTix >= capacity} onClick={() => changeQty(key, 1)}>+</button>
               </div>
             </div>
           ))}
@@ -206,11 +217,14 @@ export default function BookingPage() {
           <button
             className="ck-btn"
             disabled={!canCheckout}
-            onClick={() => alert('Checkout will be implemented in Sprint 2!')}
+            onClick={() => setNotice('Selection complete. Checkout will be available in a later release; no seats have been reserved or purchased.')}
           >
-            Proceed to checkout
+            Preview booking
           </button>
-          <p className="ck-note">Full booking logic coming in Sprint 2</p>
+          <p className="ck-note" aria-live="polite">{canCheckout
+            ? 'Your ticket and seat counts match.'
+            : `Select one ticket for each seat (${totalTix} tickets, ${selected.size} seats).`}</p>
+          <p className="ck-note">Checkout is not available in this prototype.</p>
         </div>
       </div>
     </div>
