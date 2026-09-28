@@ -34,7 +34,7 @@ Open http://localhost:3000. Keep the backend on port 5001 so the frontend can re
     npm test --prefix backend
     npm test --prefix frontend
 
-The backend tests check the database, search, filters, and error handling. The frontend tests run the real app in Chrome and check things like search, booking controls, the seat timer, and mobile layout. You'll need Google Chrome installed, or set `PLAYWRIGHT_CHANNEL` to another supported browser. Tests use their own temporary databases, so your demo data stays safe.
+The backend tests check the database, search, filters, and error handling. The frontend tests run the real app in Chrome and check things like search, booking controls, the seat timer, and mobile layout. You'll need Google Chrome installed, or set `PLAYWRIGHT_CHANNEL` to another supported browser. Tests use their own temporary databases, so demo data stays safe.
 
 ## What we built this sprint
 
