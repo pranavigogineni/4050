@@ -1,84 +1,72 @@
-# CineMax — Cinema E-Booking System
+# CineMax 🎬
 
-CSCI 4050/6050 · Team 5 · Deliverable 2 (Sprint 1)
+**CSCI 4050/6050 · Team 5 · Deliverable 2 (Sprint 1)**
 
-A working React, Express and SQLite movie catalog with title search, genre filtering, embedded trailers and a booking UI prototype.
+CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow. It runs on React, Express, and SQLite.
 
-## Run the demo
+## Running the demo
 
-Use Node.js 20 (`nvm use` if available). From the project root:
+You'll need Node.js 20 (run `nvm use` if you have nvm). From the project root:
 
-```sh
-npm ci --prefix backend
-npm ci --prefix frontend
-npm run build --prefix frontend
-npm start --prefix backend
-```
+    npm ci --prefix backend
+    npm ci --prefix frontend
+    npm run build --prefix frontend
+    npm start --prefix backend
 
-Open **http://localhost:5001**. Express serves both the built frontend and API, including direct links to movie and booking pages. Stop with Ctrl+C. Build again after changing frontend source.
+Then open **http://localhost:5001**. One server handles both the site and the API. Press Ctrl+C to stop it. If you change frontend code, rebuild before restarting.
 
-A fresh database is created automatically at `backend/cinema.db`, with 10 movies, 6 genres, both movie statuses, and three sample showtimes per movie. Movies and genres displayed in the UI are queried from SQLite. Showtimes are sample values allowed by the assignment; movie statuses are sample catalog classifications, not a current real-world cinema schedule.
+The first time you run it, a database is created at `backend/cinema.db` with 10 movies, 6 genres, and 3 sample showtimes per movie. Everything you see in the catalog comes from that database. The showtimes and "Now Showing / Coming Soon" labels are sample data, not a real theater schedule.
 
-Existing nonempty databases are not reseeded. One-time migrations repair known old sample titles/trailers/dates and the broken Dune poster; subsequent edits are preserved. Migrations are recorded in `schema_migrations`.
+## Developing locally
 
-Optional configuration: copy `backend/.env.example` to `backend/.env`. `PORT` defaults to 5001. `SQLITE_DB_PATH` defaults to `cinema.db`; relative paths resolve from `backend/`, and the parent directory must exist. No external database account is required. Database files and `.env` are excluded from Git and submission archives.
+Start the backend in one terminal:
 
-## Development
+    npm run dev --prefix backend
 
-Run the backend in one terminal:
+And the frontend in another:
 
-```sh
-npm run dev --prefix backend
-```
+    npm run dev --prefix frontend
 
-In another terminal:
+Open http://localhost:3000. Keep the backend on port 5001 so the frontend can reach it.
 
-```sh
-npm run dev --prefix frontend
-```
+## Running tests
 
-Open http://localhost:3000. Vite proxies `/api` to port 5001; keep the backend default port for this workflow. For the demo, the production workflow above needs only one running server.
+    npm test --prefix backend
+    npm test --prefix frontend
 
-## Checks
+The backend tests check the database, search, filters, and error handling. The frontend tests run the real app in Chrome and check things like search, booking controls, the seat timer, and mobile layout. You'll need Google Chrome installed, or set `PLAYWRIGHT_CHANNEL` to another supported browser. Tests use their own temporary databases, so your demo data stays safe.
 
-```sh
-npm test --prefix backend
-npm test --prefix frontend
-```
+## What we built this sprint
 
-Backend tests use disposable databases and verify seeding, all movie details/showtimes, search/filter combinations, literal wildcard handling, invalid queries, missing IDs, migrations and persistence. Frontend tests build the app and start an isolated backend on port 5017, then exercise production routes in Chrome. Install Google Chrome before running frontend tests; alternatively install a Playwright-supported browser and set `PLAYWRIGHT_CHANNEL` accordingly. External media requests are blocked in deterministic regression tests and are verified separately during the demo rehearsal.
-
-Browser tests cover search response ordering, API recovery, empty states, booking controls, repeat timer expiry, malformed links, local poster fallback and mobile layout. Test databases are temporary and do not overwrite the demo database.
-
-## Deliverable 2 scope
-
-| Requirement | Implementation |
+| Requirement | What we did |
 |---|---|
-| Home populated from database | 10 seeded movies, Now Showing / Coming Soon, card showtimes |
+| Home page from database | 10 movies split into Now Showing and Coming Soon, with showtimes on each card |
 | Movie details | Poster, title, genre, rating, synopsis, cast, director, showtimes |
-| Title search | Case-insensitive partial matching, combined genre filter, no-match message |
-| Filters | DB-backed genre control; show-date control visible and disabled as required |
-| Trailers | Embedded YouTube players on movie detail pages |
-| Booking prototype | Validated movie/time, adult/child/senior quantities and prices, selectable seat map |
-| Usability | Error/retry states, keyboard controls, mobile layout, selection/count validation |
+| Search | Case-insensitive title search that works alongside the genre filter |
+| Filters | Genre filter from the database; date filter shown but disabled (as required) |
+| Trailers | YouTube trailers embedded on each movie page |
+| Booking prototype | Pick a showtime, choose adult/child/senior tickets, select seats |
+| Usability | Error and retry states, keyboard support, mobile layout |
 
-Booking is **UI only**: sample unavailable seats, no actual reservations, payment, authentication or checkout backend. The optional five-minute local timer begins with seat selection, clears seats and quantities on expiry, and restarts with a new selection. “Preview booking” requires equal positive ticket and seat counts and explicitly reports that nothing has been purchased or reserved. Adult sample category covers ages 12–64, child under 12, senior 65+.
+**A quick note on booking:** it's a front-end prototype only. There's no real payment, login, or reservation yet. Once you pick seats, a 5-minute timer starts, and if it runs out, your selection resets. "Preview booking" shows your order and reminds you nothing was actually purchased. Ticket types: child (under 12), adult (12–64), senior (65+).
 
-Trailers, original posters and fonts require an internet connection. A bundled local image appears if a poster cannot load. Videos and poster artwork belong to their respective owners; they are linked for the academic cinema demo. Rehearse playback on the demo machine/network.
+Trailers, posters, and fonts need an internet connection. If a poster doesn't load, a backup image appears. All trailers and artwork belong to their owners and are used here for this class project.
 
-## Structure
+## Project layout
 
-- `backend/server.js`: schema, seed, one-time migrations, read-only API, production static hosting.
-- `backend/test/sqlite.test.js`: API/database regression checks.
-- `frontend/src/`: React pages, reusable components and API access.
-- `frontend/test/`: Playwright regression checks and `frontend/playwright.config.js` configuration.
-- `DEMO_CHECKLIST.md`: requirement-by-requirement presentation steps.
-- `scripts/package_submission.py`: reproducible source-only archive builder.
+- `backend/server.js`: database setup, sample data, and API
+- `backend/test/`: backend tests
+- `frontend/src/`: React pages and components
+- `frontend/test/`: browser tests
+- `DEMO_CHECKLIST.md`: step-by-step demo walkthrough
+- `scripts/package_submission.py`: builds the submission zip
 
-## Submission
+## Submitting
 
-```sh
-python3 scripts/package_submission.py
-```
+    python3 scripts/package_submission.py
 
-This rebuilds `cesrepo-sprint1.zip` using current source and both lockfiles, excluding Git internals, local databases, secrets, dependencies, generated builds and historical audit artifacts. Extract it, run the demo commands above, then submit either this archive or the current GitHub repository link to eLC before your scheduled demo. Schedule the demo and arrange at least two attending members. The code does not submit anything to eLC automatically.
+This creates `cesrepo-sprint1.zip` with just the source code. Before our demo, we'll:
+
+1. Unzip it and make sure it runs.
+2. Upload the zip or the GitHub link to eLC.
+3. Schedule the demo, with at least two team members attending.
