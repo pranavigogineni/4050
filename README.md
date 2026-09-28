@@ -2,7 +2,7 @@
 
 **CSCI 4050/6050 · Team 5 · Deliverable 2 (Sprint 1)**
 
-CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow. It runs on React, Express, and SQLite.
+CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow and it runs on React, Express, and SQLite.
 
 ## Running the demo
 
