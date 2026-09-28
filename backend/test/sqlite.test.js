@@ -1,3 +1,7 @@
+// Backend integration tests for the CineMax API.
+// These tests launch the real Express server as a child process against a
+// throwaway SQLite database, then call the API over HTTP.
+
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -14,6 +18,9 @@ async function start(databasePath, cwd) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
+
+  // Wait until the server prints its URL.
+  // Fail if it errors, exits early, or takes longer than 10 seconds.
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       child.kill();
