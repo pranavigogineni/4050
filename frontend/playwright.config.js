@@ -1,9 +1,5 @@
 import { defineConfig } from '@playwright/test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
-const directory = mkdtempSync(join(tmpdir(), 'ces-browser-'))
 export default defineConfig({
   testDir: './test',
   fullyParallel: false,
@@ -14,9 +10,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run build && node ../backend/server.js',
+    // Resets the test_browser schema to fresh sample data, so demo data in `public` is untouched.
+    command: 'npm run build && node ../backend/db/isolated-schema.js serve test_browser',
     url: 'http://127.0.0.1:5017/api/movies',
-    env: { PORT: '5017', SQLITE_DB_PATH: join(directory, 'cinema.db') },
+    env: { PORT: '5017' },
     reuseExistingServer: false,
+    timeout: 120000,
   },
 })

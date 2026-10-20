@@ -1,225 +1,138 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors    = require('cors');
-const Database = require('better-sqlite3');
 const path    = require('path');
+const { createPool, THEATRE_TIMEZONE } = require('./db/connection');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ─── DATABASE SETUP ───────────────────────────────────────────────────────────
-const databasePath = path.resolve(__dirname, process.env.SQLITE_DB_PATH || 'cinema.db');
-const db = new Database(databasePath);
-db.pragma('foreign_keys = ON');
+// ─── DATABASE ─────────────────────────────────────────────────────────────────
+// Tables and sample data are created by `npm run db:setup` (see db/).
+const pool = createPool();
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS movies (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    title        TEXT    NOT NULL,
-    genre        TEXT    NOT NULL,
-    rating       TEXT    NOT NULL,
-    description  TEXT    NOT NULL,
-    cast_members TEXT    NOT NULL,
-    director     TEXT    NOT NULL,
-    poster       TEXT    NOT NULL,
-    trailer_url  TEXT    NOT NULL,
-    status       TEXT    NOT NULL CHECK(status IN ('running','coming_soon')),
-    release_date TEXT
-  );
+// Express 4 does not pass rejected promises to the error handler on its own.
+const route = handler => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 
-  CREATE TABLE IF NOT EXISTS showtimes (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    movie_id  INTEGER NOT NULL,
-    show_time TEXT    NOT NULL,
-    FOREIGN KEY(movie_id) REFERENCES movies(id)
-  );
-`);
+// ─── RESPONSE FORMAT ──────────────────────────────────────────────────────────
+// Responses keep the Sprint 1 field names so the frontend works unchanged;
+// `genres`, `cast`, `producer` and `shows` expose the new schema.
+const STATUS_NAMES = { NOW_PLAYING: 'running', COMING_SOON: 'coming_soon' };
 
-// ─── SEED DATA ────────────────────────────────────────────────────────────────
-const { c: count } = db.prepare('SELECT COUNT(*) as c FROM movies').get();
-
-if (count === 0) {
-  const insM = db.prepare(`
-    INSERT INTO movies
-      (title, genre, rating, description, cast_members, director, poster, trailer_url, status, release_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insST = db.prepare('INSERT INTO showtimes (movie_id, show_time) VALUES (?, ?)');
-  const defaultTimes = ['2:00 PM', '5:00 PM', '8:00 PM'];
-
-  const movies = [
-    // ── NOW SHOWING ──────────────────────────────────────────────────────────
-    [
-      'Dune: Part Two', 'Sci-Fi', 'PG-13',
-      'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between love and the fate of the known universe, he must prevent a terrible future only he can foresee.',
-      'Timothée Chalamet, Zendaya, Rebecca Ferguson', 'Denis Villeneuve',
-      'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
-      'https://www.youtube.com/embed/U2Qp5pL3ovA', 'running', null
-    ],
-    [
-      'Oppenheimer', 'Drama', 'R',
-      'The story of J. Robert Oppenheimer and his role in the development of the atomic bomb during WWII — exploring the moral weight of scientific discovery and its devastating consequences.',
-      'Cillian Murphy, Emily Blunt, Matt Damon', 'Christopher Nolan',
-      'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
-      'https://www.youtube.com/embed/uYPbbksJxIg', 'running', null
-    ],
-    [
-      'Alien: Romulus', 'Horror', 'R',
-      'A group of young space colonizers come face to face with the most terrifying life form in the universe when they attempt to salvage an abandoned station drifting silently between two worlds.',
-      'Cailee Spaeny, David Jonsson, Archie Renaux', 'Fede Álvarez',
-      'https://image.tmdb.org/t/p/w500/b33nnKl1GSFbao4l3fZDDqsMx0F.jpg',
-      'https://www.youtube.com/embed/OzY2r2JXsDM', 'running', null
-    ],
-    [
-      'Inside Out 2', 'Animation', 'PG',
-      'Riley is now a teenager and new emotions arrive at Headquarters threatening chaos. Anxiety, Envy, Ennui, and Embarrassment crash the party to compete with Joy and the original crew.',
-      'Amy Poehler, Maya Hawke, Ayo Edebiri', 'Kelsey Mann',
-      'https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg',
-      'https://www.youtube.com/embed/LEjhY15eCx0', 'running', null
-    ],
-    [
-      'Kingdom of the Planet of the Apes', 'Action', 'PG-13',
-      'Many years after Caesar\'s reign, a young ape questions everything he was taught and makes choices that define a future for apes and humans alike. A new chapter begins.',
-      'Owen Teague, Freya Allan, Kevin Durand', 'Wes Ball',
-      'https://image.tmdb.org/t/p/w500/gKkl37BQuKTanygYQG1pyYgLVgf.jpg',
-      'https://www.youtube.com/embed/XtFI7SNtVpY', 'running', null
-    ],
-    [
-      'Deadpool & Wolverine', 'Action', 'R',
-      'Deadpool is recruited by the TVA and reluctantly teams up with a gruff Wolverine to face a threat that could end their universe — and maybe fix a few things along the way.',
-      'Ryan Reynolds, Hugh Jackman, Emma Corrin', 'Shawn Levy',
-      'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg',
-      'https://www.youtube.com/embed/73_1biulkYk', 'running', null
-    ],
-    // ── COMING SOON ──────────────────────────────────────────────────────────
-    [
-      'Venom: The Last Dance', 'Action', 'PG-13',
-      'Eddie Brock and Venom are on the run, hunted by both worlds. Forced into a devastating decision, they must make their last move as the universe closes in around them.',
-      'Tom Hardy, Juno Temple, Chiwetel Ejiofor', 'Kelly Marcel',
-      'https://image.tmdb.org/t/p/w500/aosm8NMQ3UyoBVpSxyimorCQykC.jpg',
-      'https://www.youtube.com/embed/__2bjWbetsA', 'coming_soon', null
-    ],
-    [
-      'Moana 2', 'Animation', 'PG',
-      'Moana sets sail on the far seas of Oceania on an expansive new voyage with an unlikely crew after receiving an unexpected call from her wayfinding ancestors.',
-      'Auli\'i Cravalho, Dwayne Johnson, Alan Tudyk', 'David Derrick Jr.',
-      'https://image.tmdb.org/t/p/w500/4YZpsylmjHbqeWzjKpUEF8gcLNW.jpg',
-      'https://www.youtube.com/embed/hDZ7y8RP5HE', 'coming_soon', null
-    ],
-    [
-      'Gladiator II', 'Action', 'R',
-      'Lucius is forced into slavery and becomes a gladiator — battling through the Roman arenas to avenge those he lost and reclaim what was taken from him.',
-      'Paul Mescal, Pedro Pascal, Denzel Washington', 'Ridley Scott',
-      'https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg',
-      'https://www.youtube.com/embed/4rgYUipGJNo', 'coming_soon', null
-    ],
-    [
-      'Wicked', 'Musical', 'PG',
-      'Before one became good and the other became wicked, Elphaba and Glinda formed an unlikely friendship at Shiz University that would change the land of Oz forever.',
-      'Cynthia Erivo, Ariana Grande, Jeff Goldblum', 'Jon M. Chu',
-      'https://image.tmdb.org/t/p/w500/xDGbZ0JJ3mYaGKy4Nzd9Kph6M9L.jpg',
-      'https://www.youtube.com/embed/6COmYeLsz4c', 'coming_soon', null
-    ],
-  ];
-
-  const seedAll = db.transaction(() => {
-    movies.forEach(row => {
-      const { lastInsertRowid: mid } = insM.run(...row);
-      defaultTimes.forEach(t => insST.run(mid, t));
-    });
-  });
-  seedAll();
-  console.log('Seeded 10 movies into SQLite');
+// pg returns DATE columns as Date objects at local midnight, so read them in local time.
+function formatDate(date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// Apply sample corrections once per database. Later local edits remain untouched.
-db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY)');
-const sampleTrailers = [
-  ['8zU5TWJHHOU', 'OzY2r2JXsDM'],
-  ['2lFLIFUUzJo', 'XtFI7SNtVpY'],
-  ['KPbMEBkM8vI', '__2bjWbetsA'],
-  ['KNbUs6-91BI', 'hDZ7y8RP5HE'],
-  ['jjlnE3Cxpb4', '4rgYUipGJNo'],
-];
-const repairSamples = db.transaction(() => {
-  if (db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get('sprint1-sample-corrections-v1')) return;
-  db.prepare("UPDATE movies SET title = 'Dune: Part Two' WHERE title = 'Dune: Part Three'").run();
-  const replaceTrailer = db.prepare('UPDATE movies SET trailer_url = ? WHERE trailer_url = ?');
-  for (const [oldId, newId] of sampleTrailers) {
-    replaceTrailer.run(`https://www.youtube.com/embed/${newId}`, `https://www.youtube.com/embed/${oldId}`);
+function isoDate(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+// '14:00:00' → '2:00 PM'
+function formatTime(time) {
+  const [hours, minutes] = time.split(':').map(Number);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
+}
+
+function toApiMovie(movie, shows = []) {
+  return {
+    id: movie.id,
+    title: movie.title,
+    genre: movie.genres[0] ?? null,
+    genres: movie.genres,
+    rating: movie.rating.replace('_', '-'),
+    description: movie.synopsis,
+    cast_members: movie.cast_members.join(', '),
+    cast: movie.cast_members,
+    director: movie.director,
+    producer: movie.producer,
+    poster: movie.poster_image_url,
+    trailer_url: movie.trailer_video_url,
+    status: STATUS_NAMES[movie.status],
+    release_date: movie.release_date && formatDate(movie.release_date),
+    // Distinct daily times for the Sprint 1 pages; `shows` holds the dated schedule.
+    showtimes: [...new Set(shows.map(show => show.show_time))].sort().map(formatTime),
+    shows: shows.map(show => ({
+      id: show.id,
+      date: isoDate(show.show_date),
+      time: formatTime(show.show_time),
+      duration: show.duration,
+      showroom: show.showroom,
+    })),
+  };
+}
+
+// ─── QUERIES ──────────────────────────────────────────────────────────────────
+const MOVIE_COLUMNS = `m.*, ARRAY(
+  SELECT g.name FROM movie_genres mg JOIN genres g ON g.id = mg.genre_id
+  WHERE mg.movie_id = m.id ORDER BY g.name COLLATE "C") AS genres`;
+
+// Shows that have not started yet, in the theatre's local time, grouped by movie id.
+async function upcomingShows(movieIds) {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.movie_id, s.show_date, s.show_time, s.duration, r.name AS showroom
+     FROM shows s JOIN showrooms r ON r.id = s.showroom_id
+     WHERE s.movie_id = ANY($1) AND s.starts_at >= now() AT TIME ZONE $2
+     ORDER BY s.starts_at, s.id`,
+    [movieIds, THEATRE_TIMEZONE]);
+  const byMovie = new Map();
+  for (const show of rows) {
+    if (!byMovie.has(show.movie_id)) byMovie.set(show.movie_id, []);
+    byMovie.get(show.movie_id).push(show);
   }
-  const removeOldSampleDate = db.prepare('UPDATE movies SET release_date = NULL WHERE title = ? AND release_date = ?');
-  for (const [title, date] of [
-    ['Venom: The Last Dance', 'Oct 25, 2024'],
-    ['Moana 2', 'Nov 27, 2024'],
-    ['Gladiator II', 'Nov 22, 2024'],
-    ['Wicked', 'Nov 22, 2024'],
-  ]) {
-    removeOldSampleDate.run(title, date);
-  }
-  db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run('sprint1-sample-corrections-v1');
-});
-repairSamples();
-const repairPoster = db.transaction(() => {
-  if (db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get('dune-poster-v1')) return;
-  db.prepare('UPDATE movies SET poster = ? WHERE poster = ? AND title = ?').run(
-    'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
-    'https://image.tmdb.org/t/p/w500/d5NXSklpcuveUsGBl8lZa4i8wJ6.jpg', 'Dune: Part Two');
-  db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run('dune-poster-v1');
-});
-repairPoster();
+  return byMovie;
+}
 
 // ─── ROUTES ───────────────────────────────────────────────────────────────────
 
 // GET /api/movies  — supports ?search=title&genre=Genre
-app.get('/api/movies', (req, res) => {
+app.get('/api/movies', route(async (req, res) => {
   const { search, genre } = req.query;
   if ([search, genre].some(value => value !== undefined && typeof value !== 'string')) {
     return res.status(400).json({ error: 'Search and genre must each be a single text value.' });
   }
-  let sql = 'SELECT * FROM movies WHERE 1=1';
+  const conditions = [];
   const params = [];
 
+  // strpos matches literally, so % and _ in a search are not wildcards.
   if (search) {
-    sql += ' AND INSTR(LOWER(title), ?) > 0';
     params.push(search.trim().toLowerCase());
+    conditions.push(`strpos(lower(m.title), $${params.length}) > 0`);
   }
-  if (genre && genre !== '') {
-    sql += ' AND LOWER(genre) = ?';
+  if (genre) {
     params.push(genre.toLowerCase());
+    conditions.push(`EXISTS (SELECT 1 FROM movie_genres mg JOIN genres g ON g.id = mg.genre_id
+                             WHERE mg.movie_id = m.id AND lower(g.name) = $${params.length})`);
   }
 
-  const movies = db.prepare(sql).all(...params);
-  const showtimes = db.prepare('SELECT movie_id, show_time FROM showtimes ORDER BY id').all();
-  const byMovie = new Map();
-  for (const { movie_id, show_time } of showtimes) {
-    if (!byMovie.has(movie_id)) byMovie.set(movie_id, []);
-    byMovie.get(movie_id).push(show_time);
-  }
-  res.json(movies.map(movie => ({ ...movie, showtimes: byMovie.get(movie.id) || [] })));
-});
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows: movies } = await pool.query(`SELECT ${MOVIE_COLUMNS} FROM movies m ${where} ORDER BY m.id`, params);
+  const shows = await upcomingShows(movies.map(movie => movie.id));
+  res.json(movies.map(movie => toApiMovie(movie, shows.get(movie.id))));
+}));
 
 // GET /api/movies/:id  — single movie with showtimes array
-app.get('/api/movies/:id', (req, res) => {
-  if (!/^[1-9]\d*$/.test(req.params.id)) return res.status(404).json({ error: 'Movie not found' });
-  const movie = db.prepare('SELECT * FROM movies WHERE id = ?').get(req.params.id);
+const MAX_ID = 2147483647; // largest PostgreSQL integer
+app.get('/api/movies/:id', route(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!/^[1-9]\d*$/.test(req.params.id) || id > MAX_ID) return res.status(404).json({ error: 'Movie not found' });
+  const { rows: [movie] } = await pool.query(`SELECT ${MOVIE_COLUMNS} FROM movies m WHERE m.id = $1`, [id]);
   if (!movie) return res.status(404).json({ error: 'Movie not found' });
 
-  const rows = db.prepare(
-    'SELECT show_time FROM showtimes WHERE movie_id = ? ORDER BY id'
-  ).all(req.params.id);
+  const shows = await upcomingShows([movie.id]);
+  res.json(toApiMovie(movie, shows.get(movie.id)));
+}));
 
-  res.json({ ...movie, showtimes: rows.map(r => r.show_time) });
-});
-
-// GET /api/genres  — distinct genre list for filter dropdown
-app.get('/api/genres', (req, res) => {
-  const rows = db.prepare(
-    'SELECT DISTINCT genre FROM movies ORDER BY genre'
-  ).all();
-  res.json(rows.map(r => r.genre));
-});
+// GET /api/genres  — genres that have movies, for the filter dropdown
+app.get('/api/genres', route(async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT g.name FROM genres g
+     WHERE EXISTS (SELECT 1 FROM movie_genres mg WHERE mg.genre_id = g.id)
+     ORDER BY g.name COLLATE "C"`);
+  res.json(rows.map(row => row.name));
+}));
 
 // Serve the production build from the same origin as the API.
 app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not found' }));
@@ -239,15 +152,28 @@ app.use((error, req, res, next) => {
 
 // ─── START ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5001;
-const server = app.listen(PORT, () => {
-  console.log(`CES Backend running at http://localhost:${server.address().port}`);
-});
+let server;
 
-function shutdown() {
-  server.close(() => {
-    db.close();
-    process.exit(0);
+async function start() {
+  try {
+    await pool.query('SELECT 1 FROM movies LIMIT 1');
+  } catch (error) {
+    console.error(`Database is not ready: ${error.message}`);
+    console.error('Run "npm run db:setup" in backend/ to create the tables and sample data.');
+    await pool.end();
+    process.exit(1);
+  }
+  server = app.listen(PORT, () => {
+    console.log(`CES Backend running at http://localhost:${server.address().port}`);
   });
 }
+
+function shutdown() {
+  if (!server) return process.exit(0);
+  server.close(() => {
+    pool.end().finally(() => process.exit(0));
+  });
+}
+start();
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

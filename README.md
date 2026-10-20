@@ -2,20 +2,21 @@
 
 **CSCI 4050/6050 · Team 5 · Deliverable 2 (Sprint 1)**
 
-CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow and it runs on React, Express, and SQLite.
+CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow and it runs on React, Express, and PostgreSQL hosted on Supabase.
 
 ## Running the demo
 
-You'll need Node.js 20 (run `nvm use` if you have nvm). From the project root:
+You'll need Node.js 20 (run `nvm use` if you have nvm). Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to the Supabase **Session pooler** connection string (Supabase → Connect). Then, from the project root:
 
     npm ci --prefix backend
     npm ci --prefix frontend
+    npm run db:setup --prefix backend
     npm run build --prefix frontend
     npm start --prefix backend
 
 Then open **http://localhost:5001**. One server handles both the site and the API. Press Ctrl+C to stop it. If you change frontend code, rebuild before restarting.
 
-The first time you run it, a database is created at `backend/cinema.db` with 10 movies, 6 genres, and 3 sample showtimes per movie. Everything you see in the catalog comes from that database. The showtimes and "Now Showing / Coming Soon" labels are sample data, not a real theater schedule.
+`npm run db:setup` creates the tables (`backend/db/migrations/`) and loads 10 movies, 6 genres, one theatre with 6 showrooms of 70 seats, and adult/child/senior ticket types. The team shares one Supabase database, so only one person needs to run it; running it again is safe. It also schedules a week of shows (2:00, 5:00 and 8:00 PM) for each now-playing movie, so re-run it if the schedule runs out. The showtimes and "Now Showing / Coming Soon" labels are sample data, not a real theater schedule. The full schema is in `schema.dbml` (paste it into dbdiagram.io).
 
 ## Developing locally
 
@@ -34,7 +35,7 @@ Open http://localhost:3000. Keep the backend on port 5001 so the frontend can re
     npm test --prefix backend
     npm test --prefix frontend
 
-The backend tests check the database, search, filters, and error handling. The frontend tests run the real app in Chrome and check things like search, booking controls, the seat timer, and mobile layout. You'll need Google Chrome installed, or set `PLAYWRIGHT_CHANNEL` to another supported browser. Tests use their own temporary databases, so demo data stays safe.
+The backend tests check the database, search, filters, and error handling. The frontend tests run the real app in Chrome and check things like search, booking controls, the seat timer, and mobile layout. You'll need Google Chrome installed, or set `PLAYWRIGHT_CHANNEL` to another supported browser. Tests run in their own `test_*` schemas in the database (set `TEST_DATABASE_URL` to use a different one), so demo data stays safe.
 
 ## What we built this sprint
 
@@ -54,7 +55,8 @@ Trailers, posters, and fonts need an internet connection. If a poster doesn't lo
 
 ## Project layout
 
-- `backend/server.js`: database setup, sample data, and API
+- `backend/server.js`: API
+- `backend/db/`: database connection, migrations, and sample data
 - `backend/test/`: backend tests
 - `frontend/src/`: React pages and components
 - `frontend/test/`: browser tests
