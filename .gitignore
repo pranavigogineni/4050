@@ -4,6 +4,8 @@ frontend/dist/
 .env
 .DS_Store
 *.log
+backend/.mail/
+cesrepo-sprint*.zip
 
 frontend/test-results/
 frontend/playwright-report/

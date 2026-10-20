@@ -4,6 +4,7 @@ import useMovie from '../hooks/useMovie'
 import LoadError from '../components/LoadError'
 import Poster from '../components/Poster'
 import './MovieDetailPage.css'
+import FavoriteButton from '../components/FavoriteButton'
 
 export default function MovieDetailPage() {
   const { id }    = useParams()
@@ -50,6 +51,7 @@ export default function MovieDetailPage() {
             </div>
 
             <h1 className="detail-title">{movie.title}</h1>
+            <FavoriteButton movie={movie} />
 
             <div className="detail-meta">
               <span>🎬 {movie.director}</span>

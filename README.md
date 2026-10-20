@@ -1,20 +1,30 @@
 # CineMax 🎬
 
-**CSCI 4050/6050 · Team 5 · Deliverable 2 (Sprint 1)**
+**CSCI 4050/6050 · Team 5 · Sprints 1 and 2**
+
+Sprint 2 adds registration and verification emails, login/logout, password recovery,
+profile and encrypted card management, favorites, and a protected admin prototype.
+See [SPRINT2.md](SPRINT2.md) for SMTP setup, admin setup, security details, and the demo checklist.
 
 CineMax is our cinema booking site. For this sprint, we basically built a movie catalog where you can browse films, search by title, filter by genre, watch trailers, and try out a booking flow and it runs on React, Express, and PostgreSQL hosted on Supabase.
 
 ## Running the demo
 
-You'll need Node.js 20 (run `nvm use` if you have nvm). Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to the Supabase **Session pooler** connection string (Supabase → Connect). Then, from the project root:
+You'll need Node.js 20.19+ (run `nvm use` if you have nvm). Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to the Supabase **Session pooler** connection string (Supabase → Connect). Then, from the project root:
 
     npm ci --prefix backend
     npm ci --prefix frontend
+    npm run configure:accounts --prefix backend
     npm run db:setup --prefix backend
     npm run build --prefix frontend
     npm start --prefix backend
 
 Then open **http://localhost:5001**. One server handles both the site and the API. Press Ctrl+C to stop it. If you change frontend code, rebuild before restarting.
+
+Configure SMTP in `backend/.env` before demonstrating account registration, recovery,
+or profile notification emails. Until configured, email remains in the encrypted
+delivery queue. `npm run configure:accounts --prefix backend` generates the private
+encryption key once without replacing existing settings.
 
 `npm run db:setup` creates the tables (`backend/db/migrations/`) and loads 10 movies, 6 genres, one theatre with 6 showrooms of 70 seats, and adult/child/senior ticket types. The team shares one Supabase database, so only one person needs to run it; running it again is safe. It also schedules a week of shows (2:00, 5:00 and 8:00 PM) for each now-playing movie, so re-run it if the schedule runs out. The showtimes and "Now Showing / Coming Soon" labels are sample data, not a real theater schedule. The full schema is in `schema.dbml` (paste it into dbdiagram.io).
 

@@ -10,7 +10,7 @@ test('catalog, combined filters, details and booking prototype', async ({ page }
   await expect(page.locator('.mcard')).toHaveCount(10)
   // 6 now-playing movies × 3 daily showtimes; coming-soon movies have no shows yet.
   await expect(page.locator('.mcard-showtime')).toHaveCount(18)
-  await expect(page.getByLabel('Filter by show date (coming in Sprint 2)')).toBeDisabled()
+  await expect(page.getByLabel('Filter by show date (not available)')).toBeDisabled()
   await page.getByLabel('Search by title').fill('uNe')
   await expect(page.locator('.mcard')).toHaveCount(1)
   await expect(page.locator('.mcard-title')).toHaveText('Dune: Part Two')

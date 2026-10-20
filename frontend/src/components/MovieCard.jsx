@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import './MovieCard.css'
 import Poster from './Poster'
+import FavoriteButton from './FavoriteButton'
 
 export default function MovieCard({ movie }) {
   const navigate = useNavigate()
@@ -9,10 +10,6 @@ export default function MovieCard({ movie }) {
     <article
       className="mcard"
       onClick={() => navigate(`/movie/${movie.id}`)}
-      tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/movie/${movie.id}`) } }}
-      role="button"
-      aria-label={`View details for ${movie.title}`}
     >
       <div className="mcard-img">
         <Poster
@@ -32,7 +29,8 @@ export default function MovieCard({ movie }) {
       </div>
 
       <div className="mcard-body">
-        <div className="mcard-title" title={movie.title}>{movie.title}</div>
+        <button className="mcard-title mcard-detail-link" aria-label={`View details for ${movie.title}`} title={movie.title}>{movie.title}</button>
+        <FavoriteButton movie={movie} />
         <div className="mcard-meta">
           <span className="tag tag-genre">{movie.genre}</span>
           {movie.status === 'running'

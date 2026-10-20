@@ -1,15 +1,23 @@
 const express = require('express');
-const cors    = require('cors');
 const path    = require('path');
 const { createPool, THEATRE_TIMEZONE } = require('./db/connection');
+const { accountRoutes } = require('./accounts/routes');
+const { startMailWorker } = require('./accounts/mail');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '32kb' }));
+app.use((req, res, next) => {
+  res.set('Referrer-Policy', 'no-referrer');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  next();
+});
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
 // Tables and sample data are created by `npm run db:setup` (see db/).
 const pool = createPool();
+app.use('/api', accountRoutes(pool));
 
 // Express 4 does not pass rejected promises to the error handler on its own.
 const route = handler => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
@@ -147,12 +155,14 @@ app.get('*', (req, res, next) => {
 app.use((error, req, res, next) => {
   console.error(error.message);
   if (res.headersSent) return next(error);
-  res.status(error.status === 404 ? 404 : 500).json({ error: 'Unable to complete the request.' });
+  const status = [400, 404, 413].includes(error.status) ? error.status : 500;
+  res.status(status).json({ error: status === 400 ? 'Invalid request data.' : 'Unable to complete the request.' });
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5001;
 let server;
+let stopMail;
 
 async function start() {
   try {
@@ -166,9 +176,11 @@ async function start() {
   server = app.listen(PORT, () => {
     console.log(`CES Backend running at http://localhost:${server.address().port}`);
   });
+  stopMail = startMailWorker(pool);
 }
 
 function shutdown() {
+  stopMail?.();
   if (!server) return process.exit(0);
   server.close(() => {
     pool.end().finally(() => process.exit(0));
