@@ -82,7 +82,7 @@ function accountRoutes(pool) {
     await db.query('UPDATE auth_tokens SET used_at = now() WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL', [user.id, purpose]);
     await db.query(`INSERT INTO auth_tokens (user_id, purpose, token_hash, expires_at)
       VALUES ($1, $2, $3, now() + $4::interval)`,
-    [user.id, purpose, digest(raw), purpose === 'VERIFY_EMAIL' ? '24 hours' : '30 minutes']);
+      [user.id, purpose, digest(raw), purpose === 'VERIFY_EMAIL' ? '24 hours' : '30 minutes']);
     const verification = purpose === 'VERIFY_EMAIL';
     const url = `${publicOrigin()}/${verification ? 'verify-email' : 'reset-password'}#token=${raw}`;
     await enqueue(db, user.email, verification ? 'Verify your CineMax email' : 'Reset your CineMax password',
@@ -151,7 +151,7 @@ function accountRoutes(pool) {
     const email = validate.email(req.body?.email);
     const { rows: [user] } = await pool.query('SELECT * FROM users WHERE lower(email) = $1', [email]);
     if (!await verifyPassword(req.body?.password, user?.password_hash)) fail('Email or password is incorrect.', 401);
-    if (user.status === 'INACTIVE') fail('Verify your email before logging in. You can request a new verification email below.', 403);
+    if (user.status === 'INACTIVE') fail('Account is not verified. Please check your email to verify your account.', 403);
     if (user.status !== 'ACTIVE') fail('This account is suspended. Please contact the cinema.', 403);
     const raw = token();
     await transaction(pool, async db => {
@@ -246,7 +246,7 @@ function accountRoutes(pool) {
       const result = await db.query(`UPDATE payment_cards SET encrypted_card_number=$1, card_holder_name=$2,
         expiration_date=$3,last_four=$4,billing_street=$5,billing_city=$6,billing_state=$7,billing_zip_code=$8
         WHERE id=$9 AND customer_id=$10`,
-      [encrypt(data.number, `card:${req.user.id}`), data.holder, data.expiration, data.number.slice(-4), ...data.billing, id, req.user.id]);
+        [encrypt(data.number, `card:${req.user.id}`), data.holder, data.expiration, data.number.slice(-4), ...data.billing, id, req.user.id]);
       if (!result.rowCount) fail('Card not found.', 404);
       await notification(db, req.user, `Your saved payment card ending in ${data.number.slice(-4)} was updated.`);
     });
