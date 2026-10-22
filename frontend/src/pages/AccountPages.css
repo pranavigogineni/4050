@@ -17,6 +17,12 @@
 .account-panel fieldset { border: 1px solid var(--glass-border); padding: 1rem; border-radius: 10px; min-width: 0; }
 .account-panel legend { padding: 0 .4rem; font-size: .9rem; }
 .form-help { font-size: .83rem; line-height: 1.6; color: var(--t2); margin: .1rem 0 .7rem; }
+.password-requirements { list-style: none; padding: 0; margin: .65rem 0 0; display: grid; gap: .3rem; color: var(--t2); font-size: .8rem; line-height: 1.5; }
+.password-requirements li { display: flex; gap: .5rem; align-items: baseline; }
+.password-requirements li > span { flex-shrink: 0; }
+.password-match { margin: .65rem 0 0; color: var(--t2); font-size: .8rem; line-height: 1.5; }
+.password-requirements .met, .password-match.met { color: #85e8c4; }
+.password-match.mismatch { color: #ffb3b3; }
 .check-field { display: flex; gap: .65rem; align-items: center; font-size: .87rem; line-height: 1.5; }
 .check-field input { width: 18px; height: 18px; accent-color: var(--blue); flex-shrink: 0; }
 .form-notice { border: 1px solid; border-radius: 10px; padding: .85rem 1rem; line-height: 1.6; font-size: .88rem; margin-bottom: 1rem; overflow-wrap: anywhere; }

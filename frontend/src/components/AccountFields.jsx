@@ -50,12 +50,41 @@ export function CardFields({ value, setValue }) {
   </>
 }
 export function PasswordFields({ value, setValue, current = false }) {
+  const helpId = useId()
+  const matchId = useId()
+  const fieldsRef = useRef(null)
+  const password = value.password ?? ''
+  const confirmation = value.confirm_password ?? ''
+  const requirements = [
+    ['12–128 characters', password.length >= 12 && password.length <= 128],
+    ['An uppercase letter (A–Z)', /[A-Z]/.test(password)],
+    ['A lowercase letter (a–z)', /[a-z]/.test(password)],
+    ['A number (0–9)', /[0-9]/.test(password)],
+    ['A symbol (e.g. !, @, #)', /[^A-Za-z0-9]/.test(password)],
+  ]
+  const valid = requirements.every(([, met]) => met)
+  const matches = Boolean(confirmation) && password === confirmation
+  useEffect(() => {
+    fieldsRef.current.querySelector('[name="password"]').setCustomValidity(valid ? '' : 'Complete the password requirements below.')
+    fieldsRef.current.querySelector('[name="confirm_password"]').setCustomValidity(confirmation && !matches ? 'Passwords must match.' : '')
+  }, [valid, confirmation, matches])
   return <>
     {current && <Field name="current_password" label="Current password" type="password" autoComplete="current-password" required maxLength={128} value={value.current_password} onChange={v => setValue({ ...value, current_password: v })} />}
-    <p className="form-help" id="password-help">Use 12–128 characters with uppercase, lowercase, a number, and a symbol.</p>
-    <div className="form-grid">
-      <Field name="password" label={current ? 'New password' : 'Password'} type="password" autoComplete="new-password" required minLength={12} maxLength={128} aria-describedby="password-help" value={value.password} onChange={v => setValue({ ...value, password: v })} />
-      <Field name="confirm_password" label="Confirm password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={value.confirm_password} onChange={v => setValue({ ...value, confirm_password: v })} />
+    <div className="form-grid" ref={fieldsRef}>
+      <div>
+        <Field name="password" label={current ? 'New password' : 'Password'} type="password" autoComplete="new-password" required minLength={12} maxLength={128} aria-describedby={helpId} value={password} onChange={v => setValue({ ...value, password: v })} />
+        <ul id={helpId} className="password-requirements" aria-label="Password requirements" aria-live="polite" aria-atomic="true">
+          {requirements.map(([label, met]) => <li key={label} className={met ? 'met' : ''}>
+            <span aria-label={met ? 'Met:' : 'Needed:'}>{met ? '✓' : '○'}</span> {label}
+          </li>)}
+        </ul>
+      </div>
+      <div>
+        <Field name="confirm_password" label="Confirm password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} aria-describedby={matchId} value={confirmation} onChange={v => setValue({ ...value, confirm_password: v })} />
+        <p id={matchId} className={`password-match${confirmation ? matches ? ' met' : ' mismatch' : ''}`} aria-live="polite">
+          {confirmation ? matches ? '✓ Passwords match' : 'Passwords do not match yet' : 'Re-enter your password to confirm it.'}
+        </p>
+      </div>
     </div>
   </>
 }
@@ -64,4 +93,4 @@ export function Notice({ error, message }) {
   useEffect(() => { if (error) errorRef.current?.focus() }, [error])
   return <>{error && <p ref={errorRef} tabIndex={-1} className="form-notice error" role="alert">{error}</p>}{message && <p className="form-notice success" role="status">{message}</p>}</>
 }
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
