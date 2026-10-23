@@ -57,7 +57,7 @@ test('customer can register, verify, save profile/cards/favorites, change passwo
   await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('main').getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Verify your email')
+  await expect(page.getByRole('alert')).toContainText('Account is not verified')
   await verifyFromEmail(page, email)
   await login(page, email)
   await page.getByRole('button', { name: 'Add Dune: Part Two to favorites', exact: true }).click()
