@@ -5,7 +5,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 root = Path(__file__).resolve().parents[1]
 archive = root / 'cesrepo-sprint2.zip'
 excluded_dirs = {'node_modules', 'dist', 'test-results', 'playwright-report', '__pycache__', '.git', '.mail'}
-files = [root / name for name in ['README.md', 'SPRINT2.md', 'DELIVERABLE5_AUDIT.md', 'DEMO_CHECKLIST.md', '.gitignore', '.nvmrc'] if (root / name).is_file()]
+files = [root / name for name in ['README.md', '.gitignore', '.nvmrc'] if (root / name).is_file()]
 for directory in ['backend', 'frontend', 'scripts']:
     for path in (root / directory).rglob('*'):
         if not path.is_file() or any(part in excluded_dirs for part in path.relative_to(root).parts):
