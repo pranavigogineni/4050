@@ -3,9 +3,9 @@
 -- Composite foreign keys enforce the diagram's notes declaratively; rules that
 -- need counting live in 003_rules.sql.
 
--- ─── USERS ────────────────────────────────────────────────────────────────────
--- Customer and Admin share one table (single-table inheritance); `role` says which.
--- Accounts start INACTIVE and become ACTIVE once the email address is verified.
+-- USERS
+-- Customers and admins share this table, separated by the `role` column.
+-- New accounts start inactive until email verification.
 CREATE TABLE users (
   id                       integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   role                     user_role   NOT NULL,
@@ -23,7 +23,8 @@ CREATE TABLE users (
 );
 CREATE UNIQUE INDEX users_email_key ON users (lower(email));
 
--- At most three cards per user (trigger in 003_rules.sql). Never store CVVs.
+-- Limits users to a maximum of 3 saved cards (enforced in 003_rules.sql). 
+-- CVVs are never stored for security.
 CREATE TABLE payment_cards (
   id                    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   customer_id           integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -34,8 +35,8 @@ CREATE TABLE payment_cards (
 );
 CREATE INDEX payment_cards_customer_id_idx ON payment_cards (customer_id);
 
--- One-time tokens for Customer.verifyEmail(code) and User.resetPassword(token).
--- Only hashes of the tokens are stored.
+-- Stores temporary tokens for email verification and password resets.
+-- For security, only token hashes are saved (never plain text).
 CREATE TABLE auth_tokens (
   id         integer       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id    integer       NOT NULL REFERENCES users (id) ON DELETE CASCADE,

@@ -1,7 +1,6 @@
 -- Up Migration
--- Supabase exposes the database through its REST API to anyone holding the project's
--- anon key. Enabling row-level security with no policies blocks that path entirely;
--- the Express backend connects as the table owner, which bypasses RLS.
+-- Enables Row-Level Security (RLS) with no policies to block public API access.
+-- Our Express backend bypasses this because it connects as the table owner.
 DO $$
 DECLARE
   t record;

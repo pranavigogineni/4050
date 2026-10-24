@@ -1,8 +1,7 @@
 -- Up Migration
 
--- btree_gist lets the shows exclusion constraint combine "same showroom" with "overlapping time".
--- Supabase keeps extensions in the `extensions` schema; plain PostgreSQL uses `public`.
--- It is shared by every schema in the database, so the down migration leaves it installed.
+-- Prevents double-booking the same room at the same time.
+-- Left installed during rollbacks because other parts of the database may share it.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'btree_gist') THEN
@@ -14,9 +13,8 @@ BEGIN
   END IF;
 END $$;
 
--- Enumerations from the domain class diagram, plus token_purpose for auth_tokens.
--- user_status is the diagram's CustomerStatus; it now applies to every user so admins
--- can suspend any account.
+-- Adds choice lists (enums) from the design, plus extra ones for auth tokens.
+-- user_status lets admins suspend any user account, not just customers.
 CREATE TYPE user_role      AS ENUM ('customer', 'admin');
 CREATE TYPE user_status    AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
 CREATE TYPE token_purpose  AS ENUM ('VERIFY_EMAIL', 'RESET_PASSWORD');
