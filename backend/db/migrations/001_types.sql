@@ -1,7 +1,7 @@
 -- Up Migration
 
 -- Prevents double-booking the same room at the same time.
--- Left installed during rollbacks because other parts of the database may share it.
+-- Left installed during rollbacks because other parts of the database may share it. 
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'btree_gist') THEN
