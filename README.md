@@ -2,11 +2,11 @@
 
 **CSCI 4050/6050 · Team 5 · Sprints 1 and 2**
 
-CineMax is our movie booking project for CSCI 4050/6050. We built it with React, Express, and PostgreSQL on Supabase. You can browse movies, search by title, filter by genre, watch trailers, and try out the booking flow.
+Sprint 2 adds registration and verification emails, login/logout, password recovery,
+profile and encrypted card management, favorites, and a protected admin prototype.
+SMTP setup, admin setup, security details, and the Sprint 2 demo checklist are included below.
 
-For Sprint 2, we added sign up, email verification, login/logout, password resets, profile editing, saved cards, and favorites. We also added an admin page, but the management screens are still prototypes.
-
-Everything you need to run it and walk through the demo is below.
+CineMax is our cinema booking site. It runs on React, Express, and PostgreSQL hosted on Supabase. You can browse films, search by title, filter by genre, watch trailers, try out a booking flow, and manage your account.
 
 ## Running the demo
 
@@ -21,15 +21,16 @@ You'll need Node.js 20.19+ (run `nvm use` if you have nvm). Copy `backend/.env.e
 
 Then open **http://localhost:5001**. One server handles both the site and the API. Press Ctrl+C to stop it. If you change frontend code, rebuild before restarting.
 
-You'll also need to set up SMTP in `backend/.env` for verification, password reset, and profile update emails to actually send. The email setup section below covers that. Without it, emails stay in the queue.
+Configure SMTP in `backend/.env` before demonstrating account registration, recovery,
+or profile notification emails. Until configured, email remains in the encrypted
+delivery queue. `npm run configure:accounts --prefix backend` generates the private
+encryption key once without replacing existing settings.
 
-`db:setup` creates the tables and adds our sample data: 10 movies, 6 genres, and one theater with 6 showrooms of 70 seats each. It also adds ticket types and a week of showtimes at 2:00, 5:00, and 8:00 PM for each now-playing movie. We share one Supabase database, so only one teammate needs to run this. You can run it again if the showtimes run out. These are sample schedules for the project.
+`npm run db:setup` creates the tables (`backend/db/migrations/`) and loads 10 movies, 6 genres, one theatre with 6 showrooms of 70 seats, and adult/child/senior ticket types. The team shares one Supabase database, so only one person needs to run it; running it again is safe. It also schedules a week of shows (2:00, 5:00 and 8:00 PM) for each now-playing movie, so re-run it if the schedule runs out. The showtimes and "Now Showing / Coming Soon" labels are sample data, not a real theater schedule. The full schema is in `schema.dbml` (paste it into dbdiagram.io).
 
-If the database already has the movies, you can use `npm run migrate --prefix backend` instead of `db:setup` to add the account tables without reseeding. The full database schema is in `schema.dbml`, which you can open in dbdiagram.io.
+The configure command preserves existing settings and creates a random `DATA_ENCRYPTION_KEY` only if one is missing. Keep this secret key backed up and use the same key for all servers sharing this database. Replacing it makes existing encrypted cards and pending emails unreadable. Never commit `.env`. Migrations add account tables and card metadata without replacing catalog data; `db:setup` is only necessary if the catalog has not been seeded.
 
-The `configure:accounts` command keeps your existing settings and creates a `DATA_ENCRYPTION_KEY` if you don't have one. Keep a backup of that key and use the same one anywhere that connects to our database. Changing it means saved cards and queued emails can no longer be decrypted. Don't commit your `.env` file.
-
-Use `APP_URL=http://localhost:5001` when running the built app, or `APP_URL=http://localhost:3000` when running the frontend and backend separately.
+For separate Vite/backend development, use the existing two `npm run dev` commands and set `APP_URL=http://localhost:3000`. For the combined production build, use `APP_URL=http://localhost:5001`.
 
 ## Developing locally
 
@@ -48,13 +49,11 @@ Open http://localhost:3000. Keep the backend on port 5001 so the frontend can re
     npm test --prefix backend
     npm test --prefix frontend
 
-The tests use their own `test_*` database schemas, so they leave the demo data alone. You can set `TEST_DATABASE_URL` if you want to use a separate database.
+Both suites use disposable `test_*` schemas, preserving the demo catalog. Set `TEST_DATABASE_URL` to target a separate database. Backend tests exercise the real PostgreSQL schema, account API, encryption, token/session lifecycles, access restrictions, ownership, favorites, concurrency, throttling and email queue delivery. Browser tests run the built app in Chrome and cover Sprint 1 plus registration, verification, profile/card/favorite changes, password change/reset, role navigation and mobile layout. Test emails are captured locally; tests never send mail to the sample addresses.
 
-Backend tests cover the database, account features, encryption, permissions, favorites, and email queue. Frontend tests run the app in Chrome and check the main user flows and mobile layout. You'll need Chrome installed, or you can set `PLAYWRIGHT_CHANNEL` to another supported browser. Test emails are saved locally, so the tests don't send real emails.
+Development uses Node's built-in `--watch` support instead of nodemon. Use Node 20.19 or newer (the audit ran on 20.20.2). The browser test launcher explicitly builds the frontend in production mode while keeping the test backend's email capture isolated.
 
-The browser tests build the frontend automatically. For development, we use Node's built-in `--watch` mode, so there's no need to install nodemon.
-
-## What you can do
+## Movie catalog and booking features
 
 | Requirement | What we did |
 |---|---|
@@ -66,11 +65,11 @@ The browser tests build the frontend automatically. For development, we use Node
 | Booking prototype | Pick a showtime, choose adult/child/senior tickets, select seats |
 | Usability | Error and retry states, keyboard support, mobile layout |
 
-**A quick note on booking:** it's a front-end prototype only. There's no real payment or reservation yet. Account login is implemented in Sprint 2. Once you pick seats, a 5-minute timer starts, and if it runs out, your selection resets. "Preview booking" shows your order and reminds you nothing was actually purchased. Ticket types: child (under 12), adult (12–64), senior (65+).
+**A quick note on booking:** it's bascially a front end prototype only. There's no real payment or reservation yet. Account login is implemented in Sprint 2. Once you pick seats, a 5 minute timer starts, and if it runs out, your selection resets. "Preview booking" shows your order and reminds you nothing was actually purchased. Ticket types: child (under 12), adult (12–64), senior (65+).
 
 Trailers, posters, and fonts need an internet connection. If a poster doesn't load, a backup image appears. All trailers and artwork belong to their owners and are used here for this class project.
 
-## Where things are
+## Project layout
 
 - `backend/server.js`: API
 - `backend/db/`: database connection, migrations, and sample data
@@ -80,9 +79,9 @@ Trailers, posters, and fonts need an internet connection. If a poster doesn't lo
 - `README.md`: setup instructions and Sprint 2 demo walkthrough
 - `scripts/package_submission.py`: builds the submission zip
 
-## Setting up emails
+## Email configuration
 
-Add your email provider's SMTP settings to `backend/.env`:
+Set these in `backend/.env` using your SMTP provider:
 
 ```dotenv
 APP_URL=http://localhost:5001
@@ -95,58 +94,55 @@ SMTP_PASS=your-smtp-password
 SMTP_FROM=CineMax <your-verified-sender@example.com>
 ```
 
-Port 587 uses STARTTLS. If your provider uses port 465, change `SMTP_SECURE` to `true`. Make sure the sender address is approved by your provider, then restart the backend.
+Port 587 uses STARTTLS. For port 465, set `SMTP_SECURE=true`. Use a provider-approved sender. Restart the backend after changing configuration.
 
-When someone signs up or updates their profile, the app saves an encrypted email in `email_outbox`. A background worker sends it and retries if delivery fails. Once it's sent, the queued message is removed. A retry can occasionally send the same email twice if the provider accepted it but the database didn't record that. Emails never include passwords or card numbers.
-
-For local testing, you can use `MAIL_MODE=file`. This saves emails as JSON files in `backend/.mail/`. Open a file and use the link in its `text` field. **This doesn't send real emails, so use SMTP for the live email demo.** File mode is disabled in production, and the saved emails aren't publicly accessible.
+Account creation and profile changes commit an encrypted email to `email_outbox` in the same database transaction. A worker delivers it over SMTP, retries failures with backoff, and removes the encrypted message after delivery. Missing SMTP configuration leaves emails queued and prints a startup notice. Delivery is at least once: if the provider accepts a message but the database acknowledgement fails, the worker may retry it. No card numbers or passwords appear in email.
 
 ## Demo checklist
 
-| Feature | What to try |
+| Requirement | Demonstration |
 | --- | --- |
 | Registration and status | Sign up with required fields; try malformed email, phone, weak/mismatched passwords, incomplete address, invalid/expired card, and duplicate email. New accounts are `INACTIVE` and cannot log in. |
 | Confirmation email | Open the real verification email and click **Verify email**. The account becomes `ACTIVE`. Reused or expired links fail; resend replaces earlier links. |
 | Login validation | Try wrong credentials, inactive and suspended accounts, then a verified account. Customer lands on the catalog; administrator lands on `/admin`. |
-| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; each opens a page marked as a prototype. |
+| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; each opens an explicitly labelled prototype workspace. |
 | Forgot password | Request a reset email, follow its link, and enter matching new passwords. Old passwords and existing sessions stop working. Links expire after 30 minutes and work once. |
 | Logout | Use **Log out**; refreshing or revisiting `/profile` requires login. The server deletes the session, not just browser state. |
-| Profile | Edit name, phone, the single home address, or promotional subscription. Reload to make sure it saved and check the notification email. Email is read-only and API updates to it are rejected. |
-| Payment cards | Add, edit and remove cards. Only masked numbers are returned. Add three, then verify a fourth is rejected. You can only access your own cards, and the three-card limit also applies to requests sent at the same time. |
-| Favorites | Tap a heart on a catalog card or detail page. View saved movies in My profile, reload to make sure it saved, follow a movie link, or remove a favorite. |
-| Change password | Try an incorrect current password, then the correct one. Changing it successfully logs you out of all sessions and sends a notification email. |
+| Profile | Edit name, phone, the single home address, or promotional subscription. Reload to verify persistence and check the notification email. Email is read-only and API updates to it are rejected. |
+| Payment cards | Add, edit and remove cards. Only masked numbers are returned. Add three, then verify a fourth is rejected. The API also enforces ownership and concurrent limits. |
+| Favorites | Tap a heart on a catalog card or detail page. View saved movies in My profile, reload to verify persistence, follow a movie link, or remove a favorite. |
+| Change password | Supply an incorrect current password, then the correct one. Successful change revokes every session and sends a notification email. |
 | Usability | Required fields are marked; forms show errors, progress and confirmation. Pages adapt to mobile widths and controls have keyboard focus and accessible labels. |
 
-### Setting up an admin account
+### Demonstrating the administrator role
 
-Sign up and verify your email first. Then someone on the team with backend access can run this, replacing the example email with yours:
+Register an account and verify its email normally. Then a trusted operator runs:
 
 ```sh
 npm run make-admin --prefix backend -- verified-email@example.com
 ```
 
-Log in again to get to the admin page. This only works for an existing, active account, and it logs that account out of any old sessions. There's no default admin password or option to sign up as an admin. The management pages are prototypes for this sprint.
+Log in again. The script promotes only an existing active account and invalidates its sessions. There are no hardcoded admin credentials, public role change endpoints, or admin registration options. Movie, promotion, user and showtime management operations themselves are outside this sprint's prototype requirement.
 
-## A few security details
+## Security behavior
 
-- Passwords are hashed with Node's `scrypt` and a different random salt for each password. We don't send passwords back to the frontend or put them in emails.
-- Saved card numbers and queued emails are encrypted with AES-256-GCM. The frontend only gets masked card details, and we don't store CVVs.
-- Sessions expire after eight hours. The database stores hashes of session tokens, and cookies use HttpOnly and SameSite=Lax, plus Secure in production.
-- Verification links expire after 24 hours. Password reset links expire after 30 minutes and only work once. Only token hashes are stored, and the links keep tokens out of server access logs by putting them in the URL fragment.
-- The backend checks account status and permissions. Changing or resetting a password logs you out of all sessions.
-- Requests that change data need JSON, a custom header, and an allowed origin. Login and other auth routes also have rate limits.
-- Database queries use parameters. Users can't change their email, role, or account status through profile edits, and can only access their own cards and favorites.
-- The new tables use row-level security to block direct anonymous access through Supabase's REST API.
-- For production, use HTTPS, set `NODE_ENV=production`, and use an HTTPS `APP_URL`. If you add a reverse proxy, configure it explicitly; the server doesn't automatically trust forwarded client IPs.
+- Passwords use per password random salts and Node's `scrypt` (`N=32768`, `r=8`, `p=3`); passwords are never returned or emailed.
+- Card numbers and pending email bodies use AES-256-GCM with fresh random IVs and context binding. Card APIs return only the last four digits and non-secret metadata. No CVV is accepted for storage.
+- Sessions are random opaque tokens; only hashes are stored in PostgreSQL. Cookies are HttpOnly, SameSite=Lax, and Secure in production. Sessions expire after eight hours.
+- Verification links expire after 24 hours; reset links after 30 minutes. Only token hashes are stored. Email URLs put tokens in the fragment so they do not appear in server access logs.
+- Authenticated endpoints check the database account status and role. Password changes/reset revoke all sessions. Session creation rechecks credentials under a row lock.
+- Writes require a custom header, JSON and an allowed origin. CORS is not opened to arbitrary origins. Auth endpoints have database-backed rate limits.
+- SQL is parameterized. Users cannot modify their email, role or status through profile updates. Card access is scoped by owner; favorites are unique per customer/movie.
+- New tables enable row-level security to block direct anonymous Supabase REST access, matching the existing architecture.
+- In production use HTTPS with `NODE_ENV=production` and an HTTPS `APP_URL`. Configure a trusted reverse proxy deliberately if adding one; the server does not blindly trust forwarded client IPs.
 
-## Supabase SSL setup
+## Database certificate verification
 
-Download the server root certificate from **Supabase → Database settings → SSL configuration** and set `DB_SSL_CA_FILE` in `backend/.env` to its location. Paths are relative to `backend/`. For example:
+Download the server root certificate from **Supabase → Database settings → SSL configuration** and set `DB_SSL_CA_FILE` in `backend/.env` to its location. Relative paths resolve from `backend/`. For example:
 
 ```dotenv
 DB_SSL_CA_FILE=certs/supabase-root.crt
 ```
 
-With this certificate, the app can verify the database server's identity. Without it, the development connection is still encrypted, but the server's identity isn't checked. Production requires certificate verification for remote databases and won't connect if that check fails.
+Supplying this file enables certificate verification in development. Production always requires verified TLS for remote databases and fails closed if the certificate cannot be verified. Without a certificate configured, the existing development connection remains encrypted but does not authenticate the database server. The audit confirmed this project's certificate chain needs a supplied CA; do not mark this configuration check complete until the teammate supplies it. See [Supabase's SSL instructions](https://supabase.com/docs/guides/database/connecting-to-postgres#ssl).
 
-Our database needs the Supabase CA certificate, so this part of setup still needs to be finished once the team has it. See [Supabase's SSL instructions](https://supabase.com/docs/guides/database/connecting-to-postgres#ssl) for the details.
