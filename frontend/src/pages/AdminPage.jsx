@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { accountApi } from '../api/account'
 import { Field, Notice } from '../components/AccountFields'
 import './AccountPages.css'
+import PromotionPanel from './PromotionPanel'
 
 const emptyMovie = { title: '', cast_members: '', director: '', producer: '', synopsis: '', poster_image_url: '', trailer_video_url: '', release_date: '', rating: 'PG_13', status: 'NOW_PLAYING', genre_ids: [] }
 function Select({ label, value, onChange, children }) {
@@ -75,7 +76,7 @@ export default function AdminPage() {
         {rooms !== null && (rooms.length ? <Select label="Available showroom" value={show.showroom_id} onChange={v => changeShow('showroom_id', v)}><option value="">Choose a showroom</option>{rooms.map(r => <option key={r.id} value={r.id}>{r.name} · {r.seat_capacity} seats</option>)}</Select> : <p role="status">No showrooms are available for that interval. Change the time or duration.</p>)}
         <button className="btn-primary" disabled={busy || rooms?.length === 0}>{busy ? 'Checking…' : rooms === null ? 'Find available showrooms' : 'Confirm showtime'}</button>
       </form>}
-      {selected === 'Manage Promotions' && <p className="form-help">Promotion management is an optional bonus and is not included in this sprint.</p>}
+      {selected === 'Manage Promotions' && <PromotionPanel />}
       {selected === 'Manage Users' && <p className="form-help">User management is not part of this sprint. Account registration and profile management are available through the customer portal.</p>}
     </section>}
   </main>

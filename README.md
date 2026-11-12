@@ -4,7 +4,7 @@
 
 Sprint 2 adds registration and verification emails, login/logout, password recovery,
 profile and encrypted card management, favorites, and a protected admin portal. Sprint 3 adds movie creation, showtime scheduling,
-database seat maps, and checkout through a mock payment page.
+database seat maps, checkout through a mock payment page, and the promotion/email bonus.
 SMTP setup, admin setup, security details, and the Sprint 2 demo checklist are included below.
 
 CineMax is bascially our cinema booking site. It runs on React, Express, and PostgreSQL hosted on Supabase. You can browse films, search by title, filter by genre, watch trailers, try out a booking flow, and manage your account.
@@ -114,7 +114,7 @@ Account creation and profile changes commit an encrypted email to `email_outbox`
 | Registration and status | Sign up with required fields; try malformed email, phone, weak/mismatched passwords, incomplete address, invalid/expired card, and duplicate email. New accounts are `INACTIVE` and cannot log in. |
 | Confirmation email | Open the real verification email and click **Verify email**. The account becomes `ACTIVE`. Reused or expired links fail; resend replaces earlier links. |
 | Login validation | Try wrong credentials, inactive and suspended accounts, then a verified account. Customer lands on the catalog; administrator lands on `/admin`. |
-| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; movie creation and showtime scheduling are functional; Promotions and Users show their scope. |
+| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; movie creation, showtime scheduling, and promotion creation are functional; Users explains its scope. |
 | Forgot password | Request a reset email, follow its link, and enter matching new passwords. Old passwords and existing sessions stop working. Links expire after 30 minutes and work once. |
 | Logout | Use **Log out**; refreshing or revisiting `/profile` requires login. The server deletes the session, not just browser state. |
 | Profile | Edit name, phone, the single home address, or promotional subscription. Reload to verify persistence and check the notification email. Email is read-only and API updates to it are rejected. |
@@ -131,7 +131,7 @@ Register an account and verify its email normally. Then a trusted operator runs:
 npm run make-admin --prefix backend -- verified-email@example.com
 ```
 
-Log in again. The script promotes only an existing active account and invalidates its sessions. There are no hardcoded admin credentials, public role change endpoints, or admin registration options. Movie creation and showtime scheduling are implemented. Movie edit/delete and user management are not required for Sprint 3; promotion management is an optional bonus and is not implemented.
+Log in again. The script promotes only an existing active account and invalidates its sessions. There are no hardcoded admin credentials, public role change endpoints, or admin registration options. Movie creation and showtime scheduling are implemented. Movie edit/delete and user management are not required for Sprint 3; the promotion creation and subscriber-email bonus is implemented.
 
 ## Security behavior
 
@@ -193,3 +193,31 @@ responses and does not require a database; it does not replace integration tests
 If Supabase reports “tenant/user not found,” check that the project is active and
 replace `DATABASE_URL` in `backend/.env` with its current Session pooler connection
 string. Never commit or share the password.
+
+## Sprint 3 promotion bonus
+
+In **Admin → Manage Promotions**, enter a unique code, description, discount
+percentage (greater than 0 and at most 100, up to two decimal places), start date,
+and end date. Codes accept letters, numbers, hyphens and underscores and are saved
+in uppercase. Dates use Eastern Time; end dates cannot precede start dates or
+already be expired. Creating a promotion saves it and queues one email per active,
+subscribed customer in the same transaction. Duplicate codes cannot create duplicate
+email campaigns. The saved promotion list persists after refreshing.
+
+The email worker rechecks each recipient's status and subscription immediately
+before delivery, so an opt-out while a message waits in the queue suppresses it.
+Inactive/suspended accounts, administrators, and unsubscribed customers are excluded.
+Messages contain the code, description, discount, validity dates, and a link to
+profile preferences. The existing SMTP configuration above is required for real
+inbox delivery; missing SMTP leaves messages queued. Tests capture emails locally
+and do not send mail to real customers. Queue retries retain the existing at-least-once
+delivery behavior, so an ambiguous SMTP acknowledgement can cause a retry.
+
+No additional tables or migrations are needed: this uses `promotions`,
+`users.subscribed_to_promotions`, and the existing encrypted `email_outbox`.
+The bonus covers creation and email announcements; redeeming a code or processing
+a discounted payment is not added to the Sprint 3 payment mockup.
+
+For the demo, use an active subscribed customer and an active unsubscribed customer
+with inboxes your team controls. Create a promotion and verify that only the
+subscriber receives it. Try a duplicate code, an invalid discount, and reversed dates.

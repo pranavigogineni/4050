@@ -2,6 +2,7 @@
 const express = require('express');
 const { fail } = require('../accounts/security');
 const validate = require('../accounts/validation');
+const { enqueue, publicOrigin } = require('../accounts/mail');
 const { THEATRE_TIMEZONE } = require('../db/connection');
 const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 function text(value, label, max = 200, multiline = false) {
@@ -37,6 +38,44 @@ function cinemaRoutes(pool, { requireUser, customer, transaction }) {
     const rooms = await pool.query('SELECT id, name, seat_capacity FROM showrooms ORDER BY name');
     const genres = await pool.query('SELECT id, name FROM genres ORDER BY name');
     res.json({ movies: movies.rows, showrooms: rooms.rows, genres: genres.rows, timezone: THEATRE_TIMEZONE });
+  }));
+  router.get('/admin/promotions', requireUser, admin, wrap(async (req, res) => {
+    const { rows } = await pool.query(`SELECT id,promo_code,description,discount_percent,
+      start_date::text,end_date::text FROM promotions ORDER BY id DESC`);
+    res.json(rows);
+  }));
+  router.post('/admin/promotions', requireUser, admin, wrap(async (req, res) => {
+    const b = req.body || {};
+    const code = text(b.promo_code, 'promotion code', 30).toUpperCase();
+    if (!/^[A-Z0-9_-]+$/.test(code)) fail('Use letters, numbers, hyphens or underscores for the promotion code.');
+    const description = text(b.description, 'promotion description', 2000, true);
+    const percent = b.discount_percent;
+    if (!['string', 'number'].includes(typeof percent) || !/^\d{1,3}(\.\d{1,2})?$/.test(String(percent)) || Number(percent) <= 0 || Number(percent) > 100) {
+      fail('Enter a discount greater than 0 and at most 100, with up to two decimal places.');
+    }
+    const start = date(b.start_date), end = date(b.end_date);
+    if (end < start) fail('End date must be on or after the start date.');
+    try {
+      const result = await transaction(pool, async db => {
+        const { rows: [valid] } = await db.query(`SELECT $1::date >= (now() AT TIME ZONE $2)::date AS valid`, [end, THEATRE_TIMEZONE]);
+        if (!valid.valid) fail('The promotion must not already be expired.');
+        const { rows: [promotion] } = await db.query(`INSERT INTO promotions
+          (promo_code,description,discount_percent,start_date,end_date) VALUES ($1,$2,$3,$4,$5)
+          RETURNING id,promo_code`, [code, description, percent, start, end]);
+        const { rows: subscribers } = await db.query(`SELECT id,email FROM users
+          WHERE role='customer' AND status='ACTIVE' AND subscribed_to_promotions ORDER BY id`);
+        for (const subscriber of subscribers) {
+          await enqueue(db, subscriber.email, `CineMax promotion: ${code}`,
+            `Enjoy ${Number(percent)}% off with code ${code}.\n\n${description}\n\nValid ${start} through ${end} (Eastern Time).\n\nVisit ${publicOrigin()}/\nManage promotional email preferences in My profile: ${publicOrigin()}/profile`,
+            { promotionCustomerId: subscriber.id });
+        }
+        return { ...promotion, queued_emails: subscribers.length };
+      });
+      res.status(201).json({ ...result, message: `Promotion ${code} created. ${result.queued_emails} subscriber email(s) queued for delivery.` });
+    } catch (error) {
+      if (error.code === '23505') fail('That promotion code already exists. Choose a different code.', 409);
+      throw error;
+    }
   }));
   router.post('/admin/movies', requireUser, admin, wrap(async (req, res) => {
     const b = req.body || {};

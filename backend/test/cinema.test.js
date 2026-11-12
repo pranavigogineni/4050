@@ -4,7 +4,7 @@ const express = require('express');
 const { once } = require('node:events');
 const { createTestSchema, dropTestSchema } = require('../db/isolated-schema');
 const { accountRoutes } = require('../accounts/routes');
-const { token, digest } = require('../accounts/security');
+const { token, digest, decrypt } = require('../accounts/security');
 const schema = `test_cinema_${process.pid}_${Date.now()}`;
 let pool, server, base, admin, customer, customerId;
 async function request(path, body, cookie) {
@@ -14,6 +14,7 @@ async function request(path, body, cookie) {
   return { status: response.status, body: await response.json() };
 }
 before(async () => {
+  process.env.DATA_ENCRYPTION_KEY = require('node:crypto').randomBytes(32).toString('hex');
   pool = await createTestSchema(schema);
   for (const role of ['admin', 'customer']) {
     const { rows: [user] } = await pool.query(`INSERT INTO users (role,first_name,last_name,email,password_hash,phone_number,status)
@@ -80,4 +81,71 @@ test('seat maps and checkout validate ownership of seats, booked seats, prices, 
   assert.equal((await request('/checkout/summary', body, customer)).status, 409);
   assert.equal((await request('/checkout/payment', { ...body, email: 'customer@example.com' }, customer)).status, 409);
   assert.equal((await request('/checkout/summary', { ...body, tickets: [{ seat_id: second.id, ticket_type_id: type.id }] }, customer)).status, 200);
+});
+
+test('promotion bonus validates input, queues only active subscribers, and honors opt-out before delivery', async () => {
+  const { startMailWorker } = require('../accounts/mail');
+  const fs = require('node:fs/promises');
+  const os = require('node:os');
+  const path = require('node:path');
+  const recipients = [
+    ['subscribed', 'customer', 'ACTIVE', true], ['optout', 'customer', 'ACTIVE', true],
+    ['unsubscribed', 'customer', 'ACTIVE', false], ['inactive', 'customer', 'INACTIVE', true],
+    ['suspended', 'customer', 'SUSPENDED', true], ['administrator', 'admin', 'ACTIVE', true],
+  ];
+  for (const [name, role, status, subscribed] of recipients) await pool.query(`INSERT INTO users
+    (role,first_name,last_name,email,password_hash,phone_number,status,subscribed_to_promotions)
+    VALUES ($1,'Promo','Test',$2,'unused','7065550100',$3,$4)`, [role, `${name}@example.com`, status, subscribed]);
+  const start = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const end = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const body = { promo_code: 'bonus20', description: 'A movie night discount.', discount_percent: '20.50', start_date: start, end_date: end };
+  assert.equal((await request('/admin/promotions')).status, 401);
+  assert.equal((await request('/admin/promotions', body, customer)).status, 403);
+  for (const invalid of [{ promo_code: '' }, { promo_code: 'INVALID CODE' }, { description: '' }, { discount_percent: 0 },
+    { discount_percent: 101 }, { discount_percent: '1.234' }, { discount_percent: true }, { start_date: '2030-02-30' },
+    { start_date: end, end_date: start }, { start_date: '2000-01-01', end_date: '2000-01-02' }]) {
+    assert.equal((await request('/admin/promotions', { ...body, ...invalid }, admin)).status, 400);
+  }
+  const result = await request('/admin/promotions', body, admin);
+  assert.equal(result.status, 201, JSON.stringify(result.body));
+  assert.equal(result.body.promo_code, 'BONUS20');
+  assert.equal(result.body.queued_emails, 2);
+  const mail = (await pool.query('SELECT encrypted_payload FROM email_outbox ORDER BY id')).rows
+    .map(r => JSON.parse(decrypt(r.encrypted_payload, 'email')));
+  assert.deepEqual(mail.map(m => m.to).sort(), ['optout@example.com', 'subscribed@example.com']);
+  assert.match(mail[0].text, /20.5%/);
+  assert.ok(mail[0].text.includes(start) && mail[0].text.includes(end));
+  assert.equal((await request('/admin/promotions', { ...body, promo_code: 'BoNuS20' }, admin)).status, 409);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM email_outbox')).rows[0].n, 2);
+  const listed = await request('/admin/promotions', undefined, admin);
+  assert.equal(listed.body[0].discount_percent, '20.50');
+  // A queue failure must roll back the promotion as well, allowing a safe retry.
+  const key = process.env.DATA_ENCRYPTION_KEY;
+  try {
+    process.env.DATA_ENCRYPTION_KEY = '';
+    assert.equal((await request('/admin/promotions', { ...body, promo_code: 'ROLLBACK' }, admin)).status, 503);
+  } finally { process.env.DATA_ENCRYPTION_KEY = key; }
+  assert.equal((await pool.query("SELECT id FROM promotions WHERE promo_code='ROLLBACK'")).rowCount, 0);
+  await pool.query("UPDATE users SET subscribed_to_promotions=false WHERE email='optout@example.com'");
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cinemax-promo-test-'));
+  const oldMode = process.env.MAIL_MODE, oldDir = process.env.MAIL_OUTPUT_DIR;
+  process.env.MAIL_MODE = 'file'; process.env.MAIL_OUTPUT_DIR = dir;
+  const stop = startMailWorker(pool);
+  try {
+    const deadline = Date.now() + 10000;
+    while ((await pool.query('SELECT id FROM email_outbox WHERE sent_at IS NULL')).rowCount && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert.equal((await pool.query('SELECT id FROM email_outbox WHERE sent_at IS NULL')).rowCount, 0);
+    const files = await fs.readdir(dir);
+    assert.equal(files.length, 1);
+    const delivered = JSON.parse(await fs.readFile(path.join(dir, files[0]), 'utf8'));
+    assert.equal(delivered.to, 'subscribed@example.com');
+    assert.equal(delivered.promotionCustomerId, undefined);
+  } finally {
+    stop();
+    if (oldMode === undefined) delete process.env.MAIL_MODE; else process.env.MAIL_MODE = oldMode;
+    if (oldDir === undefined) delete process.env.MAIL_OUTPUT_DIR; else process.env.MAIL_OUTPUT_DIR = oldDir;
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });
