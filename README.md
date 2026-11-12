@@ -221,3 +221,15 @@ a discounted payment is not added to the Sprint 3 payment mockup.
 For the demo, use an active subscribed customer and an active unsubscribed customer
 with inboxes your team controls. Create a promotion and verify that only the
 subscriber receives it. Try a duplicate code, an invalid discount, and reversed dates.
+
+## Booked-seat demo example
+
+Run `npm run demo:booked-seat --prefix backend` to mark one available seat in the
+next upcoming now-playing show as booked. The command prints the movie, date,
+showroom, seat, and direct localhost booking link. That seat appears unavailable
+and cannot be selected. Repeating it for the same show reuses the fixture.
+
+This creates a clearly marked zero-dollar DEMO booking under an inactive,
+unsubscribed fixture account with no login credentials. It never charges a card or
+sends an email and does not alter existing customer bookings. Run it again after
+the demo show has passed to prepare the next upcoming show.
