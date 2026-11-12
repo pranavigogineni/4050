@@ -121,7 +121,7 @@ test('customer can register, verify, save profile/cards/favorites, change passwo
   await expect(page).toHaveURL(/\/login$/)
 })
 
-test('reset email completes recovery and admins land on the protected prototype', async ({ page, request }) => {
+test('reset email completes recovery and admins land on the protected admin portal', async ({ page, request }) => {
   const email = `admin-${Date.now()}@example.com`
   const response = await request.post('/api/auth/register', {
     headers: { 'X-CineMax-Request': '1' },
@@ -143,9 +143,9 @@ test('reset email completes recovery and admins land on the protected prototype'
   await expect(page.getByRole('status')).toContainText('Password reset successfully')
   await login(page, email, changedPassword)
   await expect(page).toHaveURL(/\/admin$/)
-  for (const name of ['Manage Movies', 'Promotions', 'Users', 'Showtimes']) {
+  for (const name of ['Manage Movies', 'Manage Promotions', 'Manage Users', 'Manage Showtimes']) {
     await page.getByRole('button', { name: new RegExp(name) }).click()
-    await expect(page.getByText(`${name} is a prototype workspace`, { exact: false })).toBeVisible()
+    await expect(page.locator('section.account-panel').getByRole('heading', { name, exact: true })).toBeVisible()
   }
   await page.screenshot({ path: join(tmpdir(), 'cinemax-sprint2-admin.png'), fullPage: true })
 })

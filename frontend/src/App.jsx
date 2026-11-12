@@ -8,6 +8,7 @@ import { AuthProvider, Protected } from './auth/AuthContext'
 import { RegisterPage, LoginPage, RecoveryPage, TokenPage } from './pages/AuthPages'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import CheckoutPage from './pages/CheckoutPage'
 
 export default function App() {
   const location = useLocation()
@@ -18,6 +19,8 @@ export default function App() {
         <Route path="/"           element={<HomePage />} />
         <Route path="/movie/:id"  element={<MovieDetailPage />} />
         <Route path="/booking/:id/:showtime" element={<BookingPage key={location.pathname} />} />
+        <Route path="/checkout/:showId" element={<Protected><CheckoutPage key={location.pathname} /></Protected>} />
+        <Route path="/payment/:showId" element={<Protected><CheckoutPage key={location.pathname} payment /></Protected>} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<RecoveryPage key="reset" />} />

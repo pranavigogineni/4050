@@ -64,14 +64,14 @@ export default function MovieDetailPage() {
             {/* showtimes */}
             <div className="detail-sublabel">Select a showtime</div>
             <div className="showtimes-row">
-              {movie.showtimes && movie.showtimes.length > 0
-                ? movie.showtimes.map(t => (
+              {movie.shows && movie.shows.length > 0
+                ? movie.shows.map(t => (
                     <button
-                      key={t}
+                      key={t.id}
                       className="st-btn"
-                      onClick={() => navigate(`/booking/${movie.id}/${encodeURIComponent(t)}`)}
+                      onClick={() => navigate(`/booking/${movie.id}/${t.id}`)}
                     >
-                      Book {t} <span className="st-arrow">→</span>
+                      Book {t.date} · {t.time} · {t.showroom} <span className="st-arrow">→</span>
                     </button>
                   ))
                 : <p className="no-shows">There are no shows available.</p>
