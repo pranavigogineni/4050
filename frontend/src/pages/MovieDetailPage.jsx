@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useMovie from '../hooks/useMovie'
 import LoadError from '../components/LoadError'
@@ -9,6 +9,7 @@ import FavoriteButton from '../components/FavoriteButton'
 export default function MovieDetailPage() {
   const { id }    = useParams()
   const navigate  = useNavigate()
+  const [selectedDate, setSelectedDate] = useState('')
   const { movie, loading, error, retry } = useMovie(id)
   useEffect(() => {
     if (movie && window.location.hash === '#trailer') document.getElementById('trailer')?.scrollIntoView()
@@ -16,6 +17,10 @@ export default function MovieDetailPage() {
   if (loading) return <div className="spinner-wrap" role="status" aria-label="Loading movie"><div className="spinner" /></div>
   if (error) return <LoadError message={error} retry={retry} />
   if (!movie) return null
+
+  const dates = [...new Set((movie.shows || []).map(show => show.date))].sort()
+  const activeDate = dates.includes(selectedDate) ? selectedDate : dates[0]
+  const dateLabel = date => new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
     <div className="detail-page">
@@ -62,21 +67,25 @@ export default function MovieDetailPage() {
             <p className="detail-desc">{movie.description}</p>
 
             {/* showtimes */}
-            <div className="detail-sublabel">Select a showtime</div>
-            <div className="showtimes-row">
-              {movie.shows && movie.shows.length > 0
-                ? movie.shows.map(t => (
-                    <button
-                      key={t.id}
-                      className="st-btn"
-                      onClick={() => navigate(`/booking/${movie.id}/${t.id}`)}
-                    >
-                      Book {t.date} · {t.time} · {t.showroom} <span className="st-arrow">→</span>
-                    </button>
-                  ))
-                : <p className="no-shows">There are no shows available.</p>
-              }
-            </div>
+            <section className="showtime-picker" aria-label="Choose a showtime">
+              <div className="detail-sublabel">Select a date</div>
+              <div className="show-date-list" aria-label="Available dates">
+                {dates.map(date => <button key={date} className={`show-date ${date === activeDate ? 'active' : ''}`}
+                  aria-pressed={date === activeDate} onClick={() => setSelectedDate(date)}>{dateLabel(date)}</button>)}
+              </div>
+              {activeDate && <p className="showtime-day">{dateLabel(activeDate)} <span>· Eastern Time</span></p>}
+              <div className="showtimes-row">
+                {(movie.shows || []).filter(show => show.date === activeDate).map(show => (
+                  <button key={show.id} className="st-btn"
+                    aria-label={`Book ${show.date} · ${show.time} · ${show.showroom}`}
+                    onClick={() => navigate(`/booking/${movie.id}/${show.id}`)}>
+                    <span className="showtime-time">{show.time}</span>
+                    <span className="showtime-room">{show.showroom}</span>
+                  </button>
+                ))}
+                {!dates.length && <p className="no-shows">There are no shows available.</p>}
+              </div>
+            </section>
           </div>
         </div>
 
