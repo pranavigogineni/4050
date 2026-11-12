@@ -68,3 +68,14 @@
   .nav-link { font-size: .78rem; }
   .admin-menu { grid-template-columns: 1fr; }
 }
+
+.account-field select, .account-field textarea {
+  width: 100%; padding: 12px; border: 1px solid var(--border, #394052); border-radius: 8px;
+  background: #141722; color: #f5f5fa; font: inherit;
+}
+.account-field textarea { resize: vertical; }
+.order-table-wrap { overflow-x: auto; }
+.order-table { width: 100%; border-collapse: collapse; margin: 24px 0; text-align: left; }
+.order-table th, .order-table td { padding: 12px 8px; border-bottom: 1px solid #394052; }
+.order-table caption { text-align: left; padding: 8px; }
+.payment-preview { border: 1px solid #394052; border-radius: 12px; padding: 24px; margin: 24px 0; }

@@ -3,9 +3,9 @@ const path = require('node:path');
 const nodemailer = require('nodemailer');
 const { encrypt, decrypt } = require('./security');
 
-async function enqueue(db, to, subject, text) {
+async function enqueue(db, to, subject, text, metadata = {}) {
   await db.query('INSERT INTO email_outbox (encrypted_payload) VALUES ($1)',
-    [encrypt(JSON.stringify({ to, subject, text }), 'email')]);
+    [encrypt(JSON.stringify({ to, subject, text, ...metadata }), 'email')]);
 }
 function publicOrigin() {
   const url = new URL(process.env.APP_URL || 'http://localhost:5001');
@@ -27,7 +27,7 @@ function startMailWorker(pool) {
       connectionTimeout: 10000, socketTimeout: 15000,
     });
   }
-  if (!transport && !fileMode) console.warn('SMTP is not configured. Account emails will remain queued until SMTP is configured.');
+  if (!transport && !fileMode) console.warn('SMTP is not configured. Emails will remain queued until SMTP is configured.');
 
   async function flush() {
     if (busy || stopped || (!transport && !fileMode)) return;
@@ -41,7 +41,19 @@ function startMailWorker(pool) {
          ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`);
       if (row) {
         try {
-          const message = decrypt(row.encrypted_payload, 'email');
+          const payload = JSON.parse(decrypt(row.encrypted_payload, 'email'));
+          // A customer may opt out while SMTP is unavailable. Recheck before delivery.
+          const { promotionCustomerId, ...mail } = payload;
+          if (promotionCustomerId !== undefined) {
+            const { rows: [recipient] } = await db.query(`SELECT email FROM users WHERE id=$1
+              AND role='customer' AND status='ACTIVE' AND subscribed_to_promotions`, [promotionCustomerId]);
+            if (!recipient || recipient.email !== mail.to) {
+              await db.query('UPDATE email_outbox SET sent_at=now(), encrypted_payload=NULL WHERE id=$1', [row.id]);
+              await db.query('COMMIT');
+              return;
+            }
+          }
+          const message = JSON.stringify(mail);
           if (fileMode) {
             const dir = process.env.MAIL_OUTPUT_DIR || path.join(__dirname, '..', '.mail');
             await fs.mkdir(dir, { recursive: true, mode: 0o700 });

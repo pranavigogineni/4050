@@ -1,12 +1,13 @@
 # CineMax 🎬
 
-**CSCI 4050/6050 · Team 5 · Sprints 1 and 2**
+**CSCI 4050/6050 · Team 5 · Sprints 1, 2 and 3**
 
 Sprint 2 adds registration and verification emails, login/logout, password recovery,
-profile and encrypted card management, favorites, and a protected admin prototype.
+profile and encrypted card management, favorites, and a protected admin portal. Sprint 3 adds movie creation, showtime scheduling,
+database seat maps, checkout through a mock payment page, and the promotion/email bonus.
 SMTP setup, admin setup, security details, and the Sprint 2 demo checklist are included below.
 
-CineMax is our cinema booking site. It runs on React, Express, and PostgreSQL hosted on Supabase. You can browse films, search by title, filter by genre, watch trailers, try out a booking flow, and manage your account.
+CineMax is bascially our cinema booking site. It runs on React, Express, and PostgreSQL hosted on Supabase. You can browse films, search by title, filter by genre, watch trailers, try out a booking flow, and manage your account.
 
 ## Running the demo
 
@@ -62,10 +63,18 @@ Development uses Node's built-in `--watch` support instead of nodemon. Use Node 
 | Search | Case-insensitive title search that works alongside the genre filter |
 | Filters | Genre filter from the database; date filter shown but disabled (as required) |
 | Trailers | YouTube trailers embedded on each movie page |
-| Booking prototype | Pick a showtime, choose adult/child/senior tickets, select seats |
+| Booking | Pick a dated showtime/showroom, choose ticket categories and seats, log in, review the order and continue to the payment mockup |
 | Usability | Error and retry states, keyboard support, mobile layout |
 
-**A quick note on booking:** it's bascially a front end prototype only. There's no real payment or reservation yet. Account login is implemented in Sprint 2. Once you pick seats, a 5 minute timer starts, and if it runs out, your selection resets. "Preview booking" shows your order and reminds you nothing was actually purchased. Ticket types: child (under 12), adult (12–64), senior (65+).
+**Booking scope:** seats and prices load from PostgreSQL, and booked seats are disabled.
+Selections are kept in `sessionStorage` for the current browser tab, including across
+refreshes and login. Checkout requires a customer account and recalculates prices and
+checks booked seats on the server. The summary lets the customer confirm or change
+the order email without changing their profile. The payment page is a mockup: no
+payment, final booking, or confirmation email is created. Cross-session seat locks
+and automatic five-minute expiration are deferred to the final demo, as allowed by
+the Sprint 3 rubric. Closing the tab discards its draft. Ticket categories and prices
+come from `ticket_types` rather than hardcoded UI values.
 
 Trailers, posters, and fonts need an internet connection. If a poster doesn't load, a backup image appears. All trailers and artwork belong to their owners and are used here for this class project.
 
@@ -105,7 +114,7 @@ Account creation and profile changes commit an encrypted email to `email_outbox`
 | Registration and status | Sign up with required fields; try malformed email, phone, weak/mismatched passwords, incomplete address, invalid/expired card, and duplicate email. New accounts are `INACTIVE` and cannot log in. |
 | Confirmation email | Open the real verification email and click **Verify email**. The account becomes `ACTIVE`. Reused or expired links fail; resend replaces earlier links. |
 | Login validation | Try wrong credentials, inactive and suspended accounts, then a verified account. Customer lands on the catalog; administrator lands on `/admin`. |
-| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; each opens an explicitly labelled prototype workspace. |
+| Admin prototype | The protected portal includes Manage Movies, Promotions, Users and Showtimes; movie creation, showtime scheduling, and promotion creation are functional; Users explains its scope. |
 | Forgot password | Request a reset email, follow its link, and enter matching new passwords. Old passwords and existing sessions stop working. Links expire after 30 minutes and work once. |
 | Logout | Use **Log out**; refreshing or revisiting `/profile` requires login. The server deletes the session, not just browser state. |
 | Profile | Edit name, phone, the single home address, or promotional subscription. Reload to verify persistence and check the notification email. Email is read-only and API updates to it are rejected. |
@@ -122,7 +131,7 @@ Register an account and verify its email normally. Then a trusted operator runs:
 npm run make-admin --prefix backend -- verified-email@example.com
 ```
 
-Log in again. The script promotes only an existing active account and invalidates its sessions. There are no hardcoded admin credentials, public role change endpoints, or admin registration options. Movie, promotion, user and showtime management operations themselves are outside this sprint's prototype requirement.
+Log in again. The script promotes only an existing active account and invalidates its sessions. There are no hardcoded admin credentials, public role change endpoints, or admin registration options. Movie creation and showtime scheduling are implemented. Movie edit/delete and user management are not required for Sprint 3; the promotion creation and subscriber-email bonus is implemented.
 
 ## Security behavior
 
@@ -146,3 +155,81 @@ DB_SSL_CA_FILE=certs/supabase-root.crt
 
 Supplying this file enables certificate verification in development. Production always requires verified TLS for remote databases and fails closed if the certificate cannot be verified. Without a certificate configured, the existing development connection remains encrypted but does not authenticate the database server. The audit confirmed this project's certificate chain needs a supplied CA; do not mark this configuration check complete until the teammate supplies it. See [Supabase's SSL instructions](https://supabase.com/docs/guides/database/connecting-to-postgres#ssl).
 
+
+## Sprint 3 setup and demo
+
+Reuse the existing PostgreSQL/Supabase database. No new migrations or tables are
+required for Sprint 3. Existing `movies`, `movie_genres`, `shows`, `showrooms`,
+`seats`, `ticket_types`, and `tickets` tables supply the data. If starting from a
+fresh database, run the setup commands above. On an existing database, run
+`npm run seed --prefix backend` if upcoming shows have expired. The seed provides
+six showrooms with 70 seats each.
+
+1. Log in as an administrator. Open **Manage Movies**, enter all required fields,
+   choose a genre, and add a movie. Follow its catalog link to verify persistence.
+2. Open **Manage Showtimes**, choose a movie, date, time, and duration. Find available
+   showrooms, select one, and confirm. Times use America/New_York. Overlapping
+   intervals are excluded from the choices and rejected by the database if the
+   schedule changes before submission. Back-to-back shows are allowed.
+3. As a guest, open a movie and select a dated showtime and showroom. Choose ticket
+   quantities and matching seats. Proceed to checkout, log in as a customer, and
+   verify the selection survives. Review ticket prices, seats, and subtotal;
+   confirm/change the email, then continue to the payment mockup.
+4. Try blank movie fields, invalid URLs, invalid show dates, occupied intervals,
+   mismatched seat counts, and invalid checkout email. Backend integration tests
+   also insert a booked ticket and verify rejection at summary/payment.
+
+Architecture: React pages call Express route controllers. `backend/cinema/routes.js`
+contains the Sprint 3 validation and database queries; account middleware supplies
+session/role checks and write protection. PostgreSQL enforces relational integrity
+and showroom overlap constraints. Draft seat selection is intentionally local to a
+tab for this sprint; the existing selection/hold tables support future server holds.
+
+Run `npm test --prefix backend` and `npm test --prefix frontend` against a valid
+`DATABASE_URL` or `TEST_DATABASE_URL`. They use disposable schemas. The supplemental
+`npm run test:ui --prefix frontend` checks Sprint 3 browser behavior with mocked API
+responses and does not require a database; it does not replace integration tests.
+
+If Supabase reports “tenant/user not found,” check that the project is active and
+replace `DATABASE_URL` in `backend/.env` with its current Session pooler connection
+string. Never commit or share the password.
+
+## Sprint 3 promotion bonus
+
+In **Admin → Manage Promotions**, enter a unique code, description, discount
+percentage (greater than 0 and at most 100, up to two decimal places), start date,
+and end date. Codes accept letters, numbers, hyphens and underscores and are saved
+in uppercase. Dates use Eastern Time; end dates cannot precede start dates or
+already be expired. Creating a promotion saves it and queues one email per active,
+subscribed customer in the same transaction. Duplicate codes cannot create duplicate
+email campaigns. The saved promotion list persists after refreshing.
+
+The email worker rechecks each recipient's status and subscription immediately
+before delivery, so an opt-out while a message waits in the queue suppresses it.
+Inactive/suspended accounts, administrators, and unsubscribed customers are excluded.
+Messages contain the code, description, discount, validity dates, and a link to
+profile preferences. The existing SMTP configuration above is required for real
+inbox delivery; missing SMTP leaves messages queued. Tests capture emails locally
+and do not send mail to real customers. Queue retries retain the existing at-least-once
+delivery behavior, so an ambiguous SMTP acknowledgement can cause a retry.
+
+No additional tables or migrations are needed: this uses `promotions`,
+`users.subscribed_to_promotions`, and the existing encrypted `email_outbox`.
+The bonus covers creation and email announcements; redeeming a code or processing
+a discounted payment is not added to the Sprint 3 payment mockup.
+
+For the demo, use an active subscribed customer and an active unsubscribed customer
+with inboxes your team controls. Create a promotion and verify that only the
+subscriber receives it. Try a duplicate code, an invalid discount, and reversed dates.
+
+## Booked-seat demo example
+
+Run `npm run demo:booked-seat --prefix backend` to mark one available seat in the
+next upcoming now-playing show as booked. The command prints the movie, date,
+showroom, seat, and direct localhost booking link. That seat appears unavailable
+and cannot be selected. Repeating it for the same show reuses the fixture.
+
+This creates a clearly marked zero-dollar DEMO booking under an inactive,
+unsubscribed fixture account with no login credentials. It never charges a card or
+sends an email and does not alter existing customer bookings. Run it again after
+the demo show has passed to prepare the next upcoming show.

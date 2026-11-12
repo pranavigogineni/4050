@@ -281,6 +281,7 @@ function accountRoutes(pool) {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Administrator access is required.' });
     res.json({ sections: ['Manage Movies', 'Promotions', 'Users', 'Showtimes'] });
   });
+  router.use(require('../cinema/routes').cinemaRoutes(pool, { requireUser, customer, transaction }));
   router.use((error, req, res, next) => {
     if (!error.status) return next(error);
     res.status(error.status).json({ error: error.message });

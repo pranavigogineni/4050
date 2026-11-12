@@ -1,7 +1,7 @@
 {
   "name": "ces-backend",
   "version": "1.0.0",
-  "description": "Cinema E-Booking System — Express + PostgreSQL (Supabase) backend",
+  "description": "Cinema E-Booking System \u2014 Express + PostgreSQL (Supabase) backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,7 +11,8 @@
     "configure:accounts": "node scripts/configure-accounts.js",
     "make-admin": "node scripts/make-admin.js",
     "db:setup": "npm run migrate && npm run seed",
-    "test": "node --test"
+    "test": "node --test",
+    "demo:booked-seat": "node scripts/demo-booked-seat.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
